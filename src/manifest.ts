@@ -4,7 +4,8 @@
 // peerDependencies / devDependencies），程序化构造 + JSON.stringify 保证格式合法、
 // 字段顺序稳定。数值与形态全部来自实测可运行的参照：
 //   · host 形态照 @dreamariner/dsh-web-search-minimax（npm 可发布、git 可安装）；
-//   · client / full 的 client 声明照 DSH 官方 decoration 模板与 同代外部插件仓。
+//   · client / full 的 client 声明照 DSH 官方 decoration 模板（platform / immediately /
+//     inject / external 四字段），双端构建形态取自同代外部插件仓的实战沉淀。
 
 import type { PluginType } from './types.ts'
 
