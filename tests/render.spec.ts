@@ -182,7 +182,8 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
     try {
       renderProject(fakeOpts('host', { projectName: 'my-otter-plugins', targetDir: dir }))
       const root = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
-      expect(root.name).toBe('my-otter-plugins-workspace')
+      // 显式项目名且 ≠ 插件 id：裸项目名，不加 -workspace 后缀（名字本身已无歧义）
+      expect(root.name).toBe('my-otter-plugins')
       const plugin = JSON.parse(readFileSync(join(dir, 'packages/dsh-demo/package.json'), 'utf8'))
       expect(plugin.name).toBe('@acme/dsh-demo') // 包名不动
       const readme = readFileSync(join(dir, 'README.md'), 'utf8')
@@ -191,6 +192,11 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
+  })
+
+  it('显式项目名 = 插件 id：与缺省同形，保留 -workspace 后缀（与插件包目录区分）', () => {
+    const root = buildManifests({ packageName: '@acme/dsh-demo', pluginId: 'dsh-demo', description: 'd', type: 'client', projectName: 'dsh-demo' }).root as { name: string }
+    expect(root.name).toBe('dsh-demo-workspace')
   })
 
   it('条件块按类型保留或剔除', () => {

@@ -45,11 +45,14 @@ export function buildManifests(input: ManifestInput): { root: Record<string, unk
 /** workspace 根壳：private 壳，scripts 以 -r 递归转发（插件数无关），测试与类型检查在根。 */
 function buildRootManifest(input: ManifestInput): Record<string, unknown> {
   const { type } = input
-  // 根壳名跟项目名（目录名）不跟包名：项目名缺省 = 插件 id，可 --project-name
-  // 自定义；根壳是 private 的，不发布，无 scope 语义
-  const projectName = input.projectName ?? input.pluginId
+  // 根壳名跟项目名不跟包名。命名规则：
+  //   缺省（项目名 = 插件 id）→ `<id>-workspace`：与 packages/<id>/ 的插件包区分开；
+  //   显式 --project-name 且 ≠ 插件 id → 裸项目名：名字本身已无歧义，后缀反而累赘。
+  // 根壳是 private 的，不发布，无 scope 语义。
+  const custom = input.projectName !== undefined && input.projectName !== input.pluginId
+  const projectName = custom ? input.projectName : `${input.projectName ?? input.pluginId}-workspace`
   return {
-    name: `${projectName}-workspace`,
+    name: projectName,
     private: true,
     version: '0.1.0',
     type: 'module',

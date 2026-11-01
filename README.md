@@ -27,9 +27,9 @@ npx @dreamariner/create-dsh-plugin add @dreamariner/dsh-panel --type full
 ```
 
 - 三种形态统一 workspace 布局（根壳 + `packages/<id>/` 插件包），`add` 只写新插件包
-- 项目名与包名是两回事：目录名与根壳 manifest 名（`<项目名>-workspace`）跟项目名
-  （缺省 = 首个插件 id，`--project-name` 自定义）；发布与安装只认包名。多插件项目
-  建议起一个不被第一个插件绑架的项目名
+- 项目名与包名是两回事：目录名与根壳 manifest 名跟项目名（缺省 = 首个插件 id，
+  根壳名 `<id>-workspace`；显式 `--project-name` 且 ≠ 插件 id 时根壳名 = 裸项目名）；
+  发布与安装只认包名。多插件项目建议起一个不被第一个插件绑架的项目名
 - 根壳脚本全部 `pnpm -r` 递归转发（build / dev / test / typecheck），加包不改根；
   根 vitest 与根 tsconfig 按 `packages/*` 通配，新包自动被收编
 - 追加 `full` 形态时自动补协议声明源 submodule 与 `tsconfig.host.json` 的 face 引用
