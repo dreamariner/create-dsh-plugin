@@ -8,12 +8,24 @@
 // 项目共用脚本（<仓根>/scripts/）：包目录取 argv[2]，缺省 = 当前目录
 // （pnpm 跑包脚本时 cwd = 包目录，各包 prepare 里直接 `node ../../scripts/sync-pack-docs.mjs`）。
 import { copyFileSync, existsSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 // 本脚本在 <仓根>/scripts/：向上一级就是仓根
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const pkgDir = resolve(process.argv[2] ?? process.cwd())
+
+// ⚠ 目的地只许是 packages/ 下的目录：cwd 误定时的最坏情况是把仓根 README 当目的地
+// 覆盖掉（真源自毁）。越界即硬错误，宁可失败也不写错地方。
+const packagesDir = join(root, 'packages')
+if (!pkgDir.startsWith(packagesDir + sep)) {
+  console.error(`[sync-pack-docs] 目的地 ${pkgDir} 不在 ${packagesDir} 下（仓根是只读真源），拒绝复制`)
+  process.exit(1)
+}
+if (pkgDir === packagesDir || !existsSync(join(pkgDir, 'package.json'))) {
+  console.error(`[sync-pack-docs] 目的地 ${pkgDir} 不是插件包目录（缺 package.json）`)
+  process.exit(1)
+}
 
 for (const name of ['README.md', 'LICENSE']) {
   const src = join(root, name)
