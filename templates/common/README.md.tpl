@@ -42,9 +42,10 @@ pnpm build         # 单次构建（pnpm -r build）
 
 - **pnpm dev**：watch 重建各包 `lib/index.js`（host 半边）与 `lib/client.js`（client 半边，若有）。
 <!--#if host|full-->
-- **pnpm dev:hmr**：把各包 `lib/` 注册进本机 home patch
-  （`$DSH_HOME/cordis.patch.yml`）的 hmr watch 根。**注册后需重启实例一次**，之后的
-  host 半边改动随 `pnpm dev` 重建即时热重载（免重启、PID 不变）。`--remove` 注销。
+- **pnpm dev:hmr**：项目级接线（`scripts/dev-hmr.mjs` 一份），把**全部插件包**的
+  `lib/` 注册进本机 home patch（`$DSH_HOME/cordis.patch.yml`）的 hmr watch 根；
+  add 新插件后重跑一次即可。**注册后需重启实例一次**，之后的 host 半边改动随
+  `pnpm dev` 重建即时热重载（免重启、PID 不变）。`--remove` 注销本仓全部注册。
 <!--#endif-->
 <!--#if client|full-->
 - **client 半边免接线**：DSH 的 client-hmr 自动盯着 `lib/client.js`，重建即热替换，
@@ -76,7 +77,12 @@ pnpm --filter __PACKAGE_NAME__ publish   # prepare 自动构建 lib/ 再打包�
 ## 结构
 
 ```
-packages/__PLUGIN_ID__/
+scripts/             项目共用脚本（一仓一份，add 插件不复制）
+<!--#if host|full-->  dev-hmr.mjs          项目级 hmr 接线（注册全部插件包 lib/）
+<!--#endif-->        lib/manifest-deps.mjs  依赖策略单一来源（不变式 I1/I2，tsdown 配置引用）
+                     sync-pack-docs.mjs   发布前把仓根 README / LICENSE 同步进包目录
+<!--#if full-->      ensure-protocol.mjs  仓根 preinstall 硬守卫（协议声明源缺失即 fail）
+<!--#endif-->packages/__PLUGIN_ID__/
 src/index.ts        宿主半边入口（apply + inject + Config）
 <!--#if host|full-->src/config.ts       配置 schema（schemastery，peer 共享宿主实例）
 <!--#endif--><!--#if full-->src/remote.ts      Typert Remote 契约（codegen 单一来源，标准装饰器）
@@ -84,9 +90,7 @@ src/index.ts        宿主半边入口（apply + inject + Config）
 <!--#endif-->cordis.patch.yml    自挂载 bundle patch
 locale/*.json       展示元数据（meta.title / meta.description）
 icon.svg            插件图标（≤ 256 KiB）
-<!--#if host|full-->scripts/dev-hmr.mjs host 半边 hmr 接线脚本
-scripts/lib/manifest-deps.mjs  依赖策略单一来源（不变式 I1/I2）
-<!--#endif--><!--#if full-->tsconfig.typert.json  typert face program（生成器解析本包源码用）
+<!--#if full-->tsconfig.typert.json  typert face program（生成器解析本包源码用）
 <!--#endif-->tests/              bundle 形态守卫 / client 边界护栏 / 自身用例
 <!--#if full-->tsconfig.host.json    typert 生成器的 workspace 聚合配置（registration + paths 重定向）
 packages/protocol/  协议声明源 submodule（dreamariner/dsh-typert-protocol）

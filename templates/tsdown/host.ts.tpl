@@ -1,6 +1,7 @@
 import { defineConfig } from 'tsdown'
 import { fileURLToPath } from 'node:url'
-import { hostDeps, readManifest } from './scripts/lib/manifest-deps.mjs'
+// 项目共用脚本住根 scripts/（一仓一份，add 插件不复制）
+import { hostDeps, readManifest } from '../../scripts/lib/manifest-deps.mjs'
 
 // host 半边构建：dev 与安装/发布都跑本产物（lib/index.js 是装载入口）。
 //

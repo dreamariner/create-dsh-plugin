@@ -30,22 +30,29 @@ function fakeOpts(type: PluginType, over: Partial<ScaffoldOptions> = {}): Scaffo
   }
 }
 
-/** 三形态统一的根壳文件。 */
-const ROOT_FILES = ['.gitignore', 'README.md', 'LICENSE', 'pnpm-workspace.yaml', 'tsconfig.json', 'vitest.config.ts']
-/** full 额外的根壳文件（typert 生成器的 workspace 聚合配置）。 */
-const FULL_ROOT_EXTRA = ['tsconfig.host.json']
+/** 三形态统一的根壳文件。根 scripts/ 是项目共用脚本的家（一仓一份）。 */
+const ROOT_FILES = [
+  '.gitignore', 'README.md', 'LICENSE', 'pnpm-workspace.yaml', 'tsconfig.json', 'vitest.config.ts',
+  'scripts/lib/manifest-deps.mjs', 'scripts/sync-pack-docs.mjs',
+]
+/** host / full 的根壳额外文件（项目级 hmr 接线）。 */
+const HMR_ROOT_EXTRA = ['scripts/dev-hmr.mjs']
+/** full 额外的根壳文件（typert 聚合配置 + 协议声明源 preinstall 守卫）。 */
+const FULL_ROOT_EXTRA = ['tsconfig.host.json', 'scripts/ensure-protocol.mjs']
 
 function rootFilesOf(type: PluginType): string[] {
-  return type === 'full' ? [...ROOT_FILES, ...FULL_ROOT_EXTRA] : ROOT_FILES
+  const base = type === 'host' || type === 'full' ? [...ROOT_FILES, ...HMR_ROOT_EXTRA] : ROOT_FILES
+  return type === 'full' ? [...base, ...FULL_ROOT_EXTRA] : base
 }
 
-/** 插件包文件清单（packages/<id>/ 下，不含 package.json：manifest 程序化写，不进 plan）。 */
+/** 插件包文件清单（packages/<id>/ 下，不含 package.json：manifest 程序化写，不进 plan）。
+ *  插件包内无 scripts/：共用脚本（hmr / 依赖策略 / 文档同步）都住根 scripts/。 */
 function expectedPluginFiles(type: PluginType): string[] {
-  const common = ['tsconfig.json', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'tests/setup.ts', 'scripts/sync-pack-docs.mjs']
+  const common = ['tsconfig.json', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'tests/setup.ts']
   const tsdown = ['tsdown.config.ts']
-  const host = ['src/index.ts', 'src/config.ts', 'scripts/dev-hmr.mjs', 'scripts/lib/manifest-deps.mjs']
+  const host = ['src/index.ts', 'src/config.ts']
   const client = ['src/client/index.tsx', 'tests/client-boundary.spec.ts']
-  const typert = ['tsconfig.typert.json', 'src/remote.ts', 'scripts/ensure-protocol.mjs', 'tests/protocol-vendor.spec.ts']
+  const typert = ['tsconfig.typert.json', 'src/remote.ts', 'tests/protocol-vendor.spec.ts']
   if (type === 'host') return [...common, ...tsdown, ...host, 'tests/bundle-shape.spec.ts']
   if (type === 'client') return [...common, ...tsdown, 'src/index.ts', ...client, 'tests/bundle-shape.spec.ts']
   return [...common, ...tsdown, ...host, ...client, ...typert, 'tests/bundle-shape.spec.ts']
@@ -92,9 +99,14 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
         expect(root.scripts.test).toBe('vitest run')
         expect(root.scripts.typecheck).toBe('tsc --noEmit -p tsconfig.json')
         if (type === 'host' || type === 'full') {
-          expect(root.scripts['dev:hmr']).toBe('pnpm -r dev:hmr')
+          // 项目级 hmr：根壳直调 scripts/dev-hmr.mjs（一仓一份，注册全部插件包 lib/）
+          expect(root.scripts['dev:hmr']).toBe('node scripts/dev-hmr.mjs')
         } else {
           expect(root.scripts['dev:hmr']).toBeUndefined()
+        }
+        if (type === 'full') {
+          // 协议声明源守卫住根壳 preinstall（发布包没有 scripts/，跟包走会崩）
+          expect(root.scripts.preinstall).toBe('node scripts/ensure-protocol.mjs')
         }
         expect(root.exports).toBeUndefined()
 
@@ -109,8 +121,10 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
         expect(plugin.name).toBe('@acme/dsh-demo')
         expect(plugin.private).toBeUndefined()
         expect(plugin.scripts.build).toBe('tsdown')
-        expect(plugin.scripts.prepare).toBe('tsdown && node scripts/sync-pack-docs.mjs') // pack/publish/git 安装三路都同步文档
+        expect(plugin.scripts.prepare).toBe('tsdown && node ../../scripts/sync-pack-docs.mjs') // pack/publish/git 安装三路都同步文档
         expect(plugin.scripts.prepublishOnly).toBeUndefined()
+        expect(plugin.scripts['dev:hmr']).toBeUndefined() // hmr 是项目级（根壳直调一份脚本）
+        expect(plugin.scripts.preinstall).toBeUndefined() // full 的守卫上移根壳
         expect(plugin.scripts.test).toBeUndefined()
         expect(plugin.scripts.typecheck).toBeUndefined()
         expect(plugin.files).toContain('README.md') // npm 只自动收录包目录内的两件
@@ -123,7 +137,7 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
           expect(plugin.dsh.client).toBeUndefined()
           expect(plugin.exports['./client']).toBeUndefined()
           expect(plugin.peerDependencies['@deepseek-ai/schemastery']).toBeTypeOf('string')
-          expect(plugin.scripts['dev:hmr']).toBeTypeOf('string')
+          expect(plugin.scripts['dev:hmr']).toBeUndefined() // hmr 是项目级（根壳直调一份脚本）
           expect(plugin.devDependencies['react']).toBeUndefined()
           expect(plugin.exports['./typert']).toBeUndefined()
         } else {
@@ -145,7 +159,7 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
           expect((plugin.exports['./typert'] as { default: string }).default).toBe('./lib/typert.host.js')
           expect((plugin.exports['./remote'] as { default: string }).default).toBe('./lib/typert.remote-client.js')
           expect(plugin.dependencies.zod).toBe('^4.4.3')
-          expect(plugin.scripts.preinstall).toBe('node scripts/ensure-protocol.mjs')
+          expect(readFileSync(join(dir, 'scripts/ensure-protocol.mjs'), 'utf8')).toContain('packages/protocol')
           expect(readFileSync(join(dir, 'tsconfig.host.json'), 'utf8')).toContain('packages/protocol/src/index.ts')
           expect(readFileSync(join(dir, 'packages/dsh-demo/tsdown.config.ts'), 'utf8')).toContain('typertPlugin')
           expect(readFileSync(join(dir, 'packages/dsh-demo/tsconfig.typert.json'), 'utf8')).toContain('extends')

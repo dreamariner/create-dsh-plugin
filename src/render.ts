@@ -41,7 +41,8 @@ export function substitutionsOf(opts: ScaffoldOptions): Record<string, string> {
   }
 }
 
-/** 仓根壳文件（三形态共用；full 额外带 typert 聚合配置）。 */
+/** 仓根壳文件（三形态共用；host / full 带 hmr 接线；full 额外带 typert 聚合配置
+ *  与协议守卫）。根 scripts/ 是项目共用脚本的家：一仓一份，add 插件不复制。 */
 export function buildRootPlan(type: PluginType): RenderFile[] {
   const root: RenderFile[] = [
     { from: 'common/gitignore.tpl', to: '.gitignore' },
@@ -50,14 +51,23 @@ export function buildRootPlan(type: PluginType): RenderFile[] {
     { from: 'common/pnpm-workspace.yaml.tpl', to: 'pnpm-workspace.yaml' },
     { from: 'tsconfig/root.json.tpl', to: 'tsconfig.json' },
     { from: 'common/vitest.root.config.ts.tpl', to: 'vitest.config.ts' },
+    // 项目共用脚本（单一拷贝；host / full 的 tsdown 配置经 ../../ 引用 manifest-deps）
+    { from: 'common/scripts/lib/manifest-deps.mjs', to: 'scripts/lib/manifest-deps.mjs' },
+    { from: 'common/scripts/sync-pack-docs.mjs', to: 'scripts/sync-pack-docs.mjs' },
   ]
+  if (type === 'host' || type === 'full') {
+    root.push({ from: 'common/scripts/dev-hmr.mjs.tpl', to: 'scripts/dev-hmr.mjs' })
+  }
   if (type === 'full') {
     root.push({ from: 'full/tsconfig.host.json.tpl', to: 'tsconfig.host.json' })
+    root.push({ from: 'full/scripts/ensure-protocol.mjs.tpl', to: 'scripts/ensure-protocol.mjs' })
   }
   return root
 }
 
-/** 单个插件包的文件清单（dest 相对仓根）。add 子命令只跑本计划 + 根接线。 */
+/** 单个插件包的文件清单（dest 相对仓根）。add 子命令只跑本计划 + 根接线。
+ *  插件包内不再有 scripts/：dev-hmr（项目级）、manifest-deps、sync-pack-docs
+ *  都住根 scripts/，经相对路径引用。 */
 export function buildPluginPlan(type: PluginType, pluginId: string): RenderFile[] {
   const p = `packages/${pluginId}`
   const common: RenderFile[] = [
@@ -66,13 +76,10 @@ export function buildPluginPlan(type: PluginType, pluginId: string): RenderFile[
     { from: 'common/locale/zh.json.tpl', to: `${p}/locale/zh.json` },
     { from: 'common/icon.svg.tpl', to: `${p}/icon.svg` },
     { from: 'common/tests/setup.ts.tpl', to: `${p}/tests/setup.ts` },
-    { from: 'common/scripts/sync-pack-docs.mjs', to: `${p}/scripts/sync-pack-docs.mjs` },
     { from: 'tsconfig/plugin.json.tpl', to: `${p}/tsconfig.json` },
   ]
   const hostHalf: RenderFile[] = [
     { from: 'host/src/config.ts.tpl', to: `${p}/src/config.ts` },
-    { from: 'host/scripts/dev-hmr.mjs.tpl', to: `${p}/scripts/dev-hmr.mjs` },
-    { from: 'host/scripts/lib/manifest-deps.mjs', to: `${p}/scripts/lib/manifest-deps.mjs` },
   ]
   const hostIndex: RenderFile = { from: 'host/src/index.ts.tpl', to: `${p}/src/index.ts` }
   const clientShim: RenderFile = { from: 'client-shim/src/index.ts.tpl', to: `${p}/src/index.ts` }
@@ -89,13 +96,12 @@ export function buildPluginPlan(type: PluginType, pluginId: string): RenderFile[
   const bundleShape: RenderFile = type === 'host'
     ? { from: 'host/tests/bundle-shape.spec.ts.tpl', to: `${p}/tests/bundle-shape.spec.ts` }
     : { from: 'client/tests/bundle-shape.spec.ts.tpl', to: `${p}/tests/bundle-shape.spec.ts` }
-  // full 专属：typert 接线（face 配置 / wire 契约 / 协议守卫 / preinstall 硬守卫）
+  // full 专属：typert 接线（face 配置 / wire 契约 / 协议守卫；守卫脚本住根 scripts/）
   const typert: RenderFile[] = type === 'full'
     ? [
         { from: 'full/tsconfig.typert.json.tpl', to: `${p}/tsconfig.typert.json` },
         { from: 'full/src/remote.ts.tpl', to: `${p}/src/remote.ts` },
         { from: 'full/src/index.ts.tpl', to: `${p}/src/index.ts` },
-        { from: 'full/scripts/ensure-protocol.mjs.tpl', to: `${p}/scripts/ensure-protocol.mjs` },
         { from: 'full/tests/protocol-vendor.spec.ts.tpl', to: `${p}/tests/protocol-vendor.spec.ts` },
       ]
     : []

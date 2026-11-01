@@ -1,7 +1,8 @@
 import { typertPlugin } from '@deepseek-ai/dsh-typert-generator/tsdown'
 import { defineConfig } from 'tsdown'
 import { fileURLToPath } from 'node:url'
-import { hostDeps, readManifest } from './scripts/lib/manifest-deps.mjs'
+// 项目共用脚本住根 scripts/（一仓一份，add 插件不复制）
+import { hostDeps, readManifest } from '../../scripts/lib/manifest-deps.mjs'
 
 // 双端构建：一个数组配置同时出两份产物，`pnpm dev`（tsdown --watch）同时 watch 两端。
 //   lib/index.js  ← host 半边（src/index.ts，ESM，宿主进程装载）

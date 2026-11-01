@@ -61,9 +61,12 @@ function buildRootManifest(input: ManifestInput): Record<string, unknown> {
       // -r = 递归全部 workspace 成员：add 新插件后无需改根壳
       build: 'pnpm -r build',
       dev: 'pnpm -r --parallel dev',
-      ...(type === 'host' || type === 'full' ? { 'dev:hmr': 'pnpm -r dev:hmr' } : {}),
+      // 项目级 hmr（scripts/dev-hmr.mjs 一份）：注册全部插件包 lib/，一仓一 hmr
+      ...(type === 'host' || type === 'full' ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
       // git 安装整仓时由 prepare 驱动全部插件包构建
       prepare: 'pnpm -r build',
+      // full：协议声明源 preinstall 硬守卫（住仓根：发布包不走这里，也不会崩）
+      ...(type === 'full' ? { preinstall: 'node scripts/ensure-protocol.mjs' } : {}),
       test: 'vitest run',
       'test:watch': 'vitest',
       typecheck: 'tsc --noEmit -p tsconfig.json',
@@ -143,16 +146,16 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
     devDependencies['@types/react'] = '^18.2.0'
   }
 
+  // 插件包不带 scripts/ 目录：hmr（项目级一仓一份）、依赖策略、文档同步都住根
+  // scripts/，经相对路径引用。preinstall 守卫（full）上移根壳：发布包的 tarball
+  // 没有 scripts/，preinstall 跟包走会在安装期 MODULE_NOT_FOUND（实测踩过），且
+  // 发布包本就不需要协议声明源（运行期走 npm 协议包）
   const scripts: Record<string, string> = {
-    ...(hasTypert ? { preinstall: 'node scripts/ensure-protocol.mjs' } : {}),
     build: 'tsdown',
     dev: 'tsdown --watch',
-    ...(hasHost ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
-    // npm 只自动收录包目录内的 README / LICENSE（仓根的进不了 tarball）：prepare
-    // 在 pack / publish / git 安装三条路上都会跑，构建后顺带从仓根同步（产物
-    // gitignore，真源在仓根）。prepublishOnly 只覆盖 publish，pack 与 git 安装
-    // 不触发，弃用
-    prepare: 'tsdown && node scripts/sync-pack-docs.mjs',
+    // pack / publish / git 安装三路都会跑 prepare：构建后从仓根同步 README/LICENSE
+    // （npm 只自动收录包目录内的这两件）
+    prepare: 'tsdown && node ../../scripts/sync-pack-docs.mjs',
   }
   // test / typecheck 由 workspace 根壳承载（根 vitest 与根 tsconfig 覆盖全部插件包）
 
