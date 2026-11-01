@@ -27,6 +27,11 @@ npx @dreamariner/create-dsh-plugin add @dreamariner/dsh-panel --type full
 ```
 
 - 三种形态统一 workspace 布局（根壳 + `packages/<id>/` 插件包），`add` 只写新插件包
+- **重排既有仓**（create 对非空 `--dir`）：自动把本机 DSH profile（`$DSH_HOME/profiles/`，
+  默认 `~/.dsh`）里 `link:<仓根>` 形态的旧安装迁到 `packages/<id>` 子路径并跑
+  `pnpm install`；包名变了就连 dependencies 键与 `dsh.profile.bundles` 名单一起改。
+  背景：重排会把根 manifest 换成根壳（无 `dsh.bundle`），旧装法静默失效且无任何
+  报错日志，实例不重启不暴露。npm 发布版与 github 克隆是快照、不受重排影响，无需迁
 - 项目名与包名是两回事：目录名与根壳 manifest 名跟项目名（缺省 = 首个插件 id，
   根壳名 `<id>-workspace`；显式 `--project-name` 且 ≠ 插件 id 时根壳名 = 裸项目名）；
   发布与安装只认包名。多插件项目建议起一个不被第一个插件绑架的项目名

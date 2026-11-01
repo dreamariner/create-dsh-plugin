@@ -15,7 +15,8 @@
 // 与 dreamariner/dsh-web-search-minimax（已验证可发布、可安装的完整先例）。
 
 import { cancel, intro, note, outro, spinner } from '@clack/prompts'
-import { existsSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { runHelp } from './help.ts'
 import { promptScaffold } from './prompts.ts'
 import { renderPluginPackage, renderProject } from './render.ts'
@@ -34,10 +35,16 @@ async function main(): Promise<void> {
   const opts = await promptScaffold(argv)
 
   // 重排检测（create）：目标目录写入前已非空 = 对既有仓做 workspace 重排。
-  // 必须在渲染前采样——渲染后目录必然非空。
-  const wasNonEmpty = opts.command === 'create'
-    && existsSync(opts.targetDir)
-    && readdirSync(opts.targetDir).length > 0
+  // 必须在渲染前采样——渲染后目录必然非空；oldPackageName 是被覆盖前的根 manifest
+  // 名，迁移程序靠它判断 profile 里的旧依赖键是否需要连键改名。
+  const preExisting = opts.command === 'create' && existsSync(opts.targetDir)
+  const wasNonEmpty = preExisting && readdirSync(opts.targetDir).length > 0
+  let oldPackageName: string | null = null
+  if (preExisting) {
+    try {
+      oldPackageName = JSON.parse(readFileSync(join(opts.targetDir, 'package.json'), 'utf8'))?.name ?? null
+    } catch { /* 无法读取就当 null：迁移按 realpath 匹配照样能做 */ }
+  }
 
   const s = spinner()
   s.start(isAdd ? '生成插件包' : '生成项目文件')
@@ -51,7 +58,7 @@ async function main(): Promise<void> {
   }
   s.stop(`已写入 ${files} 个文件`)
 
-  const result = finalize(opts)
+  const result = finalize(opts, { wasNonEmpty, oldPackageName })
 
   note(
     [
