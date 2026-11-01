@@ -118,6 +118,17 @@ git -C packages/protocol add -A && git -C packages/protocol commit -m "chore: sy
 git add packages/protocol                              # 本仓记录新指针
 ```
 
+**SSH 与 HTTPS**：`.gitmodules` 里记录的是 SSH 形态（协作者配一次 GitHub key 即可）。
+本机想走 HTTPS（PAT 或凭据助手），用 git 的 URL 重写，不用改 `.gitmodules`：
+
+```sh
+git config --global url."https://github.com/".insteadOf "git@github.com:"
+```
+
+反向同理（`.gitmodules` 是 HTTPS 基线时，有 key 的人重写回 SSH）。git 没有
+「多 URL 依次回退」，`insteadOf` 是官方机制；注意 npm 式的 `git+https://` 前缀
+git 不认识，`.gitmodules` 里不能这么写。
+
 **client 侧消费**（生成产物 `lib/typert.remote-client.js` 已就绪，接法三行）：
 
 ```ts
