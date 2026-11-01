@@ -81,6 +81,10 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
     '.': './lib/index.js',
     ...(hasClient ? { './client': './lib/client.js' } : {}),
     './src/*': './src/*',
+    // 展示元数据的导出面（官方 host-plugin checklist 必查项：Plugin Manager 与
+    // Settings 在不激活插件时经 exports 读取 locale 的 meta 与 icon）
+    './locale/*.json': './locale/*.json',
+    './icon': './icon.svg',
     './package.json': './package.json',
   }
   if (hasTypert) {

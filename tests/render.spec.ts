@@ -103,6 +103,9 @@ describe('模板矩阵（三类型 × 文件清单）', () => {
           expect(pkg.engines.dsh).toMatch(/^>=0\.2\.1-rc\.3/)
         }
         expect(plugin.dsh.bundle.patch).toBe('./cordis.patch.yml')
+        // 展示元数据的导出面（官方 checklist：Plugin Manager 在不激活插件时经 exports 读取）
+        expect(plugin.exports['./locale/*.json']).toBe('./locale/*.json')
+        expect(plugin.exports['./icon']).toBe('./icon.svg')
         if (type === 'host') {
           expect(plugin.dsh.client).toBeUndefined()
           expect(plugin.exports['./client']).toBeUndefined()
