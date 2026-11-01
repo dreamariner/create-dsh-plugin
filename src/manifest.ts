@@ -148,10 +148,11 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
     build: 'tsdown',
     dev: 'tsdown --watch',
     ...(hasHost ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
-    prepare: 'tsdown',
-    // npm 只自动收录包目录内的 README / LICENSE（仓根的进不了 tarball）：
-    // 打包前从仓根同步（产物 gitignore，真源在仓根）
-    prepublishOnly: 'node scripts/sync-pack-docs.mjs',
+    // npm 只自动收录包目录内的 README / LICENSE（仓根的进不了 tarball）：prepare
+    // 在 pack / publish / git 安装三条路上都会跑，构建后顺带从仓根同步（产物
+    // gitignore，真源在仓根）。prepublishOnly 只覆盖 publish，pack 与 git 安装
+    // 不触发，弃用
+    prepare: 'tsdown && node scripts/sync-pack-docs.mjs',
   }
   // test / typecheck 由 workspace 根壳承载（根 vitest 与根 tsconfig 覆盖全部插件包）
 

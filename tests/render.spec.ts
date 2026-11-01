@@ -109,7 +109,8 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
         expect(plugin.name).toBe('@acme/dsh-demo')
         expect(plugin.private).toBeUndefined()
         expect(plugin.scripts.build).toBe('tsdown')
-        expect(plugin.scripts.prepublishOnly).toBe('node scripts/sync-pack-docs.mjs') // 打包前从仓根同步文档
+        expect(plugin.scripts.prepare).toBe('tsdown && node scripts/sync-pack-docs.mjs') // pack/publish/git 安装三路都同步文档
+        expect(plugin.scripts.prepublishOnly).toBeUndefined()
         expect(plugin.scripts.test).toBeUndefined()
         expect(plugin.scripts.typecheck).toBeUndefined()
         expect(plugin.files).toContain('README.md') // npm 只自动收录包目录内的两件
