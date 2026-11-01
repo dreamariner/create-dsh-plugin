@@ -66,7 +66,8 @@ workspace 布局不是 full 的权宜：typert 生成器结构性要求被分析
   dependencies 内联、devDependencies 只许 import type）；client 段 CJS + banner/footer
   包装，`EXTERNALS`（react 系）走宿主渲染进程模块表，`onlyImport` 把模块表 miss 前移成构建期红
 - **自挂载 bundle**：`cordis.patch.yml`（`- insert:` 自挂载）+ manifest 的 `dsh.bundle.patch`
-  声明，`dsh plugin add` 即装即挂
+  声明，`dsh plugin add` 即装即挂（CLI = 装包 + 登记 profile 的 dsh.profile.bundles
+  名单；裸 pnpm add 只装包，需手动补名单，见生成项目 README 的安装节）
 - **展示元数据**：`locale/{en,zh}.json` + `icon.svg`（官方 checklist 要求项，Plugin Manager
   与 Settings 在不激活插件时就读它们）
 - **开发循环**：`pnpm dev`（watch 重建全部插件包，full 形态数组配置同时 watch 两端）+

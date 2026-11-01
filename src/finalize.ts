@@ -134,14 +134,15 @@ export function printNextSteps(opts: ScaffoldOptions, result: FinalizeResult): v
   }
   lines.push(
     '',
-    '安装进 profile（desktop profile 不接受 CLI 转发时，用 pnpm 直调或 app 内 Plugin Manager）：',
+    '安装进 profile（方式一，推荐：CLI = 装包 + 登记 bundle 名单一步到位）：',
     `  dsh plugin --profile <name> add ${opts.packageName}`,
-    '  # 从 git：workspace 仓的 dsh CLI github: 形态装的是仓根壳（无 dsh.bundle，',
-    '  # 会被插件管理器跳过），用 pnpm 的 path: 语法直装插件包子目录：',
-    `  pnpm add "github:<owner>/<repo>#path:packages/${opts.pluginId}" --dir <profile目录>`,
+    '  方式二（desktop profile 不接受 CLI 转发 / git 子目录语法 CLI 不认时），手动两步：',
+    `  pnpm add "github:<owner>/<repo>#path:packages/${opts.pluginId}" --dir <profile目录>   # ① 装包`,
+    `  # ② 把 "${opts.packageName}" 补进 profile package.json 的 dsh.profile.bundles`,
+    '  #    （裸 pnpm add 只装包不登记：profile 只认这份名单，不登记插件不挂载）',
     '',
     '发布（单插件包）：',
-    `  pnpm --filter ${opts.packageName} publish   # prepublishOnly 同步 README/LICENSE，prepare 构建 lib/`,
+    `  pnpm --filter ${opts.packageName} publish   # prepare 同步 README/LICENSE 并构建 lib/`,
   )
   if (opts.type === 'full' && result.protocolSubmodule !== 'added') {
     lines.push(
