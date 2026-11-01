@@ -1,4 +1,4 @@
-# __PACKAGE_NAME__ —— 自挂载 bundle
+# __PACKAGE_NAME__ : 自挂载 bundle
 #
 # 本包同时扮演两个角色（官方模板同款形态，见 DSH skill cordis-plugin-development
 # 的 templates/decoration/）：

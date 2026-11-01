@@ -14,7 +14,7 @@ import { hostDeps, readManifest } from './scripts/lib/manifest-deps.mjs'
 const manifest = readManifest(fileURLToPath(new URL('.', import.meta.url)))
 
 // ── host 段 ──────────────────────────────────────────────────────────────
-// 依赖策略（不变式）：名单只写在 package.json 一处 ——
+// 依赖策略（不变式）：名单只写在 package.json 一处 :
 //   peerDependencies → 外置（宿主拦截层供给同一实例）；
 //   dependencies → 内联；devDependencies → 只许 import type。
 // ⚠ 少内联一个依赖的后果不是「运行时报错」，而是 profile 装载期解析不到 →
@@ -36,7 +36,7 @@ const host = defineConfig({
 // ── client 段 ────────────────────────────────────────────────────────────
 // EXTERNALS 是宿主契约（渲染进程模块表供给，绝不打包）；清单外的裸 import 一律内联，
 // onlyImport 让清单外的裸 import 在构建期直接报错。
-// ⚠ 官方 practices：不要 require 任何 @deepseek-ai/dsh-client-* 包 —— 控件照宿主的
+// ⚠ 官方 practices：不要 require 任何 @deepseek-ai/dsh-client-* 包 : 控件照宿主的
 //   样子自己写，样式只引用 --dsw-alias-* 主题 token。
 // ⚠ 不要把本包自己的子路径放进 EXTERNALS（不在浏览器模块表里，外置即
 //   `missed the module table` → web boot: 1 entry did not activate）。
@@ -66,7 +66,7 @@ const client = defineConfig({
     entryFileNames: 'client.js',
     chunkFileNames: 'client.[name].js',
   },
-  // —— 包装，与 DSH 运行时期望的字节形态一致 ——
+  // : 包装，与 DSH 运行时期望的字节形态一致 :
   // ⚠ CJS 格式下 rolldown 会跳过独立的 intro（产物缺 var exports = module.exports
   //   → 浏览器 exports is not defined），故 intro 并进 banner。
   banner: [

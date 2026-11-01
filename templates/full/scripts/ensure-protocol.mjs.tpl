@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// __PACKAGE_NAME__ :: ensure-protocol.mjs — preinstall 硬守卫
+// __PACKAGE_NAME__ :: ensure-protocol.mjs - preinstall 硬守卫
 //
 // packages/protocol（typert 协议声明源，git submodule）缺失时，pnpm install 报的
 // 只是一个费解的 workspace ENOENT；这里把真因与修复命令直接给出。

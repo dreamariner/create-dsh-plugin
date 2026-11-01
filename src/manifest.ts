@@ -26,37 +26,35 @@ export interface ManifestInput {
 }
 
 /**
- * full 形态是 workspace 布局（根壳 + packages/<id>/ 插件包），因为 typert 生成器
- * 结构性要求「被分析的包位于 <root>/packages/ 下」（loadRegistrations 的 isWithin
- * 检查，tsdown 插件路径 includeVendor 恒 false）——单包布局里插件包不在 packages/
- * 下，生成器静默发现不了它。protocol 与插件包都必须住 packages/。
- * host / client 形态无生成器参与，保持单包布局（更简单）。
+ * 三形态统一 workspace 布局（根壳 + packages/<id>/ 插件包）：
+ * 默认一个插件，但结构上支持用 add 子命令追加任意多个插件。
+ * full 的 typert 生成器结构性要求「被分析的包位于 <root>/packages/ 下」
+ * （loadRegistrations 的 isWithin 检查，tsdown 插件路径 includeVendor 恒 false）；
+ * host / client 与它统一布局后，add 新插件不需要迁移仓结构。
  */
-export function buildManifests(input: ManifestInput): { root?: Record<string, unknown>; plugin: Record<string, unknown> } {
-  if (input.type !== 'full') {
-    return { plugin: buildPackageManifest(input) }
-  }
+export function buildManifests(input: ManifestInput): { root: Record<string, unknown>; plugin: Record<string, unknown> } {
   return {
     root: buildRootManifest(input),
     plugin: buildPackageManifest(input),
   }
 }
 
-/** full 形态的 workspace 根壳：private 壳，scripts 转发到插件包，测试与类型检查在根。 */
+/** workspace 根壳：private 壳，scripts 以 -r 递归转发（插件数无关），测试与类型检查在根。 */
 function buildRootManifest(input: ManifestInput): Record<string, unknown> {
-  const { packageName, type } = input
+  const { type } = input
   return {
-    name: `${packageName}-workspace`,
+    name: `${input.packageName}-workspace`,
     private: true,
     version: '0.1.0',
     type: 'module',
     packageManager: 'pnpm@11.7.0',
     scripts: {
-      build: `pnpm --filter ${packageName} build`,
-      dev: `pnpm --filter ${packageName} dev`,
-      ...(type === 'full' ? { 'dev:hmr': `pnpm --filter ${packageName} dev:hmr` } : {}),
-      // git 安装（dsh plugin add git+url 拉 repo 根）时由 prepare 驱动子包构建
-      prepare: `pnpm --filter ${packageName} build`,
+      // -r = 递归全部 workspace 成员：add 新插件后无需改根壳
+      build: 'pnpm -r build',
+      dev: 'pnpm -r --parallel dev',
+      ...(type === 'host' || type === 'full' ? { 'dev:hmr': 'pnpm -r dev:hmr' } : {}),
+      // git 安装整仓时由 prepare 驱动全部插件包构建
+      prepare: 'pnpm -r build',
       test: 'vitest run',
       'test:watch': 'vitest',
       typecheck: 'tsc --noEmit -p tsconfig.json',
@@ -143,12 +141,7 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
     ...(hasHost ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
     prepare: 'tsdown',
   }
-  if (!hasTypert) {
-    // 单包布局：测试与类型检查在本包跑（full 布局由 workspace 根壳承载）
-    scripts.test = 'vitest run'
-    scripts['test:watch'] = 'vitest'
-    scripts.typecheck = 'tsc --noEmit'
-  }
+  // test / typecheck 由 workspace 根壳承载（根 vitest 与根 tsconfig 覆盖全部插件包）
 
   // typert 生成器硬性校验：files 必须显式包含它要 emit 的 4 个产物文件
   // （缺一项构建期直接报「package files must include lib/typert.host.js」）。
@@ -168,7 +161,6 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
     keywords: ['dsh', 'deepseek-harness', 'cordis', pluginId],
     license: 'Apache-2.0',
     publishConfig: { access: 'public' },
-    ...(hasTypert ? {} : { packageManager: 'pnpm@11.7.0' as const }),
     engines: { dsh: `>=${DSH_VERSION} <0.3.0-0` },
     dsh,
     ...(peerDependencies !== undefined ? { peerDependencies } : {}),

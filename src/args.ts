@@ -1,15 +1,19 @@
 // create-dsh-plugin :: 命令行参数解析（手写，零依赖）
 //
 // 用法：
-//   npx @dreamariner/create-dsh-plugin [name] [--type host|client|full] [--dir <dir>]
-//                                       [--title <t>] [--description <d>]
-//                                       [--no-install] [--no-git]
+//   npx @dreamariner/create-dsh-plugin [add] [name] [--type host|client|full] [--dir <dir>]
+//                                      [--title <t>] [--description <d>]
+//                                      [--protocol-url <u>] [--no-install] [--no-git]
 // 缺省的项回落到交互式提问。
+//
+// 两个子命令共用一套参数：
+//   create（缺省）：新建插件仓（根壳 + packages/<id>/ 默认插件），--dir = 生成目录；
+//   add：向既有 workspace 仓追加一个插件包，--dir = 仓根（缺省当前目录）。
 
-import { resolve } from 'node:path'
-import type { PluginType, ScaffoldOptions } from './types.ts'
+import type { Command, PluginType } from './types.ts'
 
 export interface CliArgs {
+  command: Command
   name?: string
   type?: PluginType
   dir?: string
@@ -25,13 +29,23 @@ export interface CliArgs {
 const TYPE_VALUES = new Set<PluginType>(['host', 'client', 'full'])
 
 export function parseArgs(argv: string[]): CliArgs {
-  const out: CliArgs = { install: true, git: true, help: false, protocolUrl: undefined }
+  // 子命令：argv[0] 显式写 create / add 之一时按它分发，否则缺省 create
+  let command: Command = 'create'
+  let rest = argv
+  if (argv[0] === 'add') {
+    command = 'add'
+    rest = argv.slice(1)
+  } else if (argv[0] === 'create') {
+    rest = argv.slice(1)
+  }
+
+  const out: CliArgs = { command, install: true, git: true, help: false, protocolUrl: undefined }
   const positional: string[] = []
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i]!
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i]!
     switch (a) {
       case '--type': {
-        const v = argv[++i]
+        const v = rest[++i]
         if (v === undefined || !TYPE_VALUES.has(v as PluginType)) {
           throw new Error(`--type 需要取值 host | client | full（收到：${v ?? '缺失'}）`)
         }
@@ -39,16 +53,16 @@ export function parseArgs(argv: string[]): CliArgs {
         break
       }
       case '--dir':
-        out.dir = argv[++i]
+        out.dir = rest[++i]
         break
       case '--title':
-        out.title = argv[++i]
+        out.title = rest[++i]
         break
       case '--description':
-        out.description = argv[++i]
+        out.description = rest[++i]
         break
       case '--protocol-url':
-        out.protocolUrl = argv[++i]
+        out.protocolUrl = rest[++i]
         break
       case '--no-install':
         out.install = false

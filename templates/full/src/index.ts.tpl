@@ -43,7 +43,7 @@ export function apply(ctx: Context, rawConfig?: Partial<__PASCAL_NAME__Config> |
   // ── Agent tool 面 ──────────────────────────────────────────────────────
   const tools = (ctx as unknown as { tools?: ToolsService }).tools
   if (tools === undefined || typeof tools.register !== 'function') {
-    throw new Error(`[${name}] ctx.tools 不可用——inject 白名单声明（['tools']）与服务实际名称不一致`)
+    throw new Error(`[${name}] ctx.tools 不可用:inject 白名单声明（['tools']）与服务实际名称不一致`)
   }
 
   const toolName = '__PLUGIN_ID___ping'

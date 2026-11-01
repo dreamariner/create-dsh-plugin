@@ -33,15 +33,15 @@ describe('client 半边边界', () => {
   it('不 import node: 内建模块（client 跑在浏览器 iframe，没有 Node）', () => {
     for (const f of files) {
       const code = readFileSync(f, 'utf8')
-      expect(code, `${f} import 了 node: 内建模块——浏览器半边不可用`).not.toMatch(/from\s+['"]node:/)
-      expect(code, `${f} import 了 node: 内建模块——浏览器半边不可用`).not.toMatch(/require\(\s*['"]node:/)
+      expect(code, `${f} import 了 node: 内建模块:浏览器半边不可用`).not.toMatch(/from\s+['"]node:/)
+      expect(code, `${f} import 了 node: 内建模块:浏览器半边不可用`).not.toMatch(/require\(\s*['"]node:/)
     }
   })
 
   it('不 import 任何 @deepseek-ai/dsh-client-* 包（官方 practices：控件自己写）', () => {
     for (const f of files) {
       const code = readFileSync(f, 'utf8')
-      expect(code, `${f} import 了 Harness Client 包——它们不在你的模块表请求里，且随时可能变`).not.toMatch(/['"]@deepseek-ai\/dsh-client-/)
+      expect(code, `${f} import 了 Harness Client 包:它们不在你的模块表请求里，且随时可能变`).not.toMatch(/['"]@deepseek-ai\/dsh-client-/)
     }
   })
 })

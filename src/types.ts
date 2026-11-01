@@ -3,8 +3,13 @@
 /** 插件形态：host = 纯 Node 半边；client = 纯浏览器半边（宿主壳空 apply）；full = 双端。 */
 export type PluginType = 'host' | 'client' | 'full'
 
+/** 子命令：create = 新建仓（根壳 + 默认插件）；add = 向既有 workspace 追加插件包。 */
+export type Command = 'create' | 'add'
+
 /** 一次脚手架运行的全部输入（交互 + 参数归并后的最终值）。 */
 export interface ScaffoldOptions {
+  /** create | add（缺省 create） */
+  command: Command
   /** npm 包名（可带 scope，如 @dreamariner/dsh-foo） */
   packageName: string
   /** cordis 插件行 id（包名去 scope） */
@@ -14,7 +19,7 @@ export interface ScaffoldOptions {
   /** 一句话描述（meta.description / manifest description） */
   description: string
   type: PluginType
-  /** 生成目标目录（绝对路径） */
+  /** 工作目录（绝对路径）：create = 生成目标目录；add = 既有 workspace 仓根 */
   targetDir: string
   /** typert 协议声明源共享仓 git URL（full 形态挂 submodule 用；缺省用内置默认） */
   protocolUrl?: string

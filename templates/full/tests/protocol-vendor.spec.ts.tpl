@@ -8,7 +8,7 @@
 //      （0.2.1-rc.3）→ pnpm 只能从 registry 取，linkWorkspacePackages 不会把
 //      运行期链接到 vendor 副本；
 //      ⚠️ vendor 版本其实满足 peer 范围（semver prerelease 细节：'rc.3-vendor.0'
-//      比 'rc.3' 「更新」）——所以真正的防线是「devDep 用裸精确版本」，第 4 条断言。
+//      比 'rc.3' 「更新」）:所以真正的防线是「devDep 用裸精确版本」，第 4 条断言。
 //   ② tsconfig.host.json 的 paths 重定向只对生成器 face program 生效。
 // 本护栏把这两件事 + 「跟得上 npm 版本」变成静态断言；与上游源码的逐字节同步
 // 由共享仓自己的自守 spec 管（packages/protocol/tests/protocol-vendor.spec.ts）。
@@ -50,7 +50,7 @@ describe('typert 协议声明源（packages/protocol）', () => {
     const vendor = readManifest(join(VENDOR_DIR, 'package.json'))
     expect(
       VENDOR_SUFFIX.test(vendor.version),
-      `vendor 版本 ${vendor.version} 缺少 -vendor.N 后缀——一旦变成裸版本号，`
+      `vendor 版本 ${vendor.version} 缺少 -vendor.N 后缀:一旦变成裸版本号，`
       + 'linkWorkspacePackages 会把运行期链接到 vendor 副本；它没有 lib/ 产物，'
       + '插件的 import 解析到它就会加载失败 → 插件凭空消失（不抛错、不进日志）',
     ).toBe(true)
@@ -79,13 +79,13 @@ describe('typert 协议声明源（packages/protocol）', () => {
     expect(readManifest(resolved).version).not.toMatch(VENDOR_SUFFIX)
   })
 
-  it('本包把协议包 pin 成裸精确版本——放宽成范围就会让 vendor 副本变成合法候选', () => {
+  it('本包把协议包 pin 成裸精确版本:放宽成范围就会让 vendor 副本变成合法候选', () => {
     const pkg = readManifest(join(PKG, 'package.json'))
     const spec = (pkg.devDependencies ?? {})['@deepseek-ai/dsh-typert-protocol']
     expect(spec, 'devDependencies 缺协议包 pin').toBeTypeOf('string')
     expect(
       spec as string,
-      `协议包被 pin 成 ${spec}——必须是裸精确版本（不含 ^ ~ >= 等范围符号），`
+      `协议包被 pin 成 ${spec}:必须是裸精确版本（不含 ^ ~ >= 等范围符号），`
       + '否则 vendor 副本（它满足 peer 范围）会成为合法候选，运行期可能被链到没有产物的 vendor',
     ).toMatch(/^\d+\.\d+\.\d+(?:-[\w.]+)?$/)
     const vendor = readManifest(join(VENDOR_DIR, 'package.json'))

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// __PACKAGE_NAME__ :: dev-hmr.mjs — 把本包 lib/ 注册进本机 DSH 的 hmr watch 根
+// __PACKAGE_NAME__ :: dev-hmr.mjs - 把本包 lib/ 注册进本机 DSH 的 hmr watch 根
 //
 // 用途：开发时「保存 → pnpm dev 重建 → 实例内热重载（免重启、PID 不变）」。
 //   pnpm dev:hmr            注册（幂等）
@@ -26,7 +26,7 @@ const dshHome = process.env.DSH_HOME || join(homedir(), '.dsh')
 const homePatch = join(dshHome, 'cordis.patch.yml')
 
 if (!remove && !existsSync(libDir)) {
-  console.error('[dev-hmr] lib/ 不存在——先构建一次：pnpm build')
+  console.error('[dev-hmr] lib/ 不存在:先构建一次：pnpm build')
   process.exit(1)
 }
 
@@ -34,7 +34,7 @@ let yaml
 try {
   yaml = createRequire(join(repo, 'package.json'))('js-yaml')
 } catch {
-  console.error('[dev-hmr] 缺 js-yaml 依赖——先 pnpm install')
+  console.error('[dev-hmr] 缺 js-yaml 依赖:先 pnpm install')
   process.exit(1)
 }
 
@@ -43,7 +43,7 @@ try {
 // 读进来包成占位对象、写出去原样还原，标签与表达式逐字节保留。
 // ⚠ 刻意不在本脚本求值表达式：求值是 DSH 的职责（它才有 dshHomePath 的定义域），
 // 在这里求值等于执行配置里的任意 JS。
-// （固有限制：js-yaml 的 round-trip 不保留注释——注释会丢，语义与标签不丢。）
+// （固有限制：js-yaml 的 round-trip 不保留注释:注释会丢，语义与标签不丢。）
 class JSExpression {
   constructor(source) {
     this.source = source
@@ -70,7 +70,7 @@ if (!hmr) {
 }
 hmr.config ??= {}
 if (hmr.config.root !== undefined && !Array.isArray(hmr.config.root)) {
-  // root 若被写成 !!js 表达式（非数组），覆盖它会静默抹掉表达式——宁可失败
+  // root 若被写成 !!js 表达式（非数组），覆盖它会静默抹掉表达式:宁可失败
   console.error('[dev-hmr] hmr 行的 config.root 不是数组（可能是 !!js 表达式），为避免覆盖请手工处理')
   process.exit(1)
 }
