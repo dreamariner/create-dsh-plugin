@@ -112,7 +112,7 @@ export function displayPath(dir: string): string {
   return dir.startsWith(process.cwd()) ? dir.slice(process.cwd().length + 1) : dir
 }
 
-export function printNextSteps(opts: ScaffoldOptions, result: FinalizeResult): void {
+export function printNextSteps(opts: ScaffoldOptions, result: FinalizeResult, wasNonEmpty = false): void {
   const rel = displayPath(opts.targetDir)
   const hasHost = opts.type === 'host' || opts.type === 'full'
   const hasClient = opts.type === 'client' || opts.type === 'full'
@@ -149,6 +149,21 @@ export function printNextSteps(opts: ScaffoldOptions, result: FinalizeResult): v
       '',
       '⚠ 协议声明源 submodule（packages/protocol）未挂载，typert codegen 依赖它。进入项目目录手动补挂：',
       `  git submodule add -b main ${PROTOCOL_REPO_URL} packages/protocol`,
+    )
+  }
+  if (wasNonEmpty) {
+    // 重排（对既有单包仓做 workspace 迁移）的静默失效面：旧装法 link:<仓根> 指向的
+    // manifest 被本次重排换了身份（根壳名 + 无 dsh.bundle），loader 跳过时不报错、
+    // 不进日志、插件凭空消失——实例不重启连失效都不暴露（2026-11-01 minimax 实例）。
+    lines.push(
+      '',
+      '⚠ 目标目录原本非空（对既有仓做了 workspace 重排）。若这个仓此前以 link:<仓根> 形态'
+        + '装进过任何 DSH profile（单包仓时代的唯一装法），那份安装已**静默失效**：',
+      '  · 根壳不再有 dsh.bundle → loader 跳过该 bundle（无报错、无日志）',
+      `  · 根 manifest 包名变成 <项目名>-workspace，profile bundles 里登记的旧包名对不上`,
+      '  处置：对每个装过它的 profile 按上方「安装进 profile」重装（link / github 都必须带',
+      `  packages/${opts.pluginId} 子路径），并核对 bundles 名单里的包名是 "${opts.packageName}"。`,
+      '  修复后重启一次实例才生效（运行中实例持有旧模块，不会自己暴露）。',
     )
   }
   if (result.hostFace === 'failed') {

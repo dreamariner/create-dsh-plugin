@@ -15,6 +15,7 @@
 // 与 dreamariner/dsh-web-search-minimax（已验证可发布、可安装的完整先例）。
 
 import { cancel, intro, note, outro, spinner } from '@clack/prompts'
+import { existsSync, readdirSync } from 'node:fs'
 import { runHelp } from './help.ts'
 import { promptScaffold } from './prompts.ts'
 import { renderPluginPackage, renderProject } from './render.ts'
@@ -31,6 +32,12 @@ async function main(): Promise<void> {
   intro(isAdd ? 'create-dsh-plugin · 追加插件包' : 'create-dsh-plugin · DeepSeek Harness 插件脚手架')
 
   const opts = await promptScaffold(argv)
+
+  // 重排检测（create）：目标目录写入前已非空 = 对既有仓做 workspace 重排。
+  // 必须在渲染前采样——渲染后目录必然非空。
+  const wasNonEmpty = opts.command === 'create'
+    && existsSync(opts.targetDir)
+    && readdirSync(opts.targetDir).length > 0
 
   const s = spinner()
   s.start(isAdd ? '生成插件包' : '生成项目文件')
@@ -60,7 +67,7 @@ async function main(): Promise<void> {
     '概况',
   )
 
-  printNextSteps(opts, result)
+  printNextSteps(opts, result, wasNonEmpty)
   outro('完成')
 }
 
