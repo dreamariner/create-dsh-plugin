@@ -83,7 +83,7 @@ describe('migrateRootLinkInstalls', () => {
     const s = scenario()
     try {
       const report = migrateRootLinkInstalls(
-        opts({ targetDir: s.repo, pluginId: 'dsh-demo', packageName: '@dreamariner/dsh-demo' }),
+        opts({ targetDir: s.repo, pluginId: 'dsh-demo', packageName: '@dreamariner/dsh-demo', type: 'full' }),
         s.home, false,
       )
       expect(report.migrated).toHaveLength(1)
@@ -98,7 +98,7 @@ describe('migrateRootLinkInstalls', () => {
     const s = scenario()
     try {
       const report = migrateRootLinkInstalls(
-        opts({ targetDir: s.repo, pluginId: 'dsh-demo', packageName: '@dreamariner/dsh-demo-x' }),
+        opts({ targetDir: s.repo, pluginId: 'dsh-demo', packageName: '@dreamariner/dsh-demo-x', type: 'full' }),
         s.home, false,
       )
       expect(report.migrated[0]).toMatchObject({ renamed: true })
@@ -107,6 +107,57 @@ describe('migrateRootLinkInstalls', () => {
       expect(m.dependencies['@dreamariner/dsh-demo-x']).toBe(`link:${s.repo}/packages/dsh-demo`)
       expect(m.dsh.profile.bundles).toEqual(['@dreamariner/dsh-demo-x'])
     } finally { rmSync(s.home, { recursive: true, force: true }); rmSync(s.repo, { recursive: true, force: true }) }
+  })
+
+  it('toRoot（回迁单包）：子路径 link 改回仓根，包名沿用', () => {
+    const home = mkdtempSync(join(tmpdir(), 'mig-home2-'))
+    const repo = mkdtempSync(join(tmpdir(), 'mig-repo2-'))
+    const profile = join(home, 'profiles', 'desktop')
+    // 旧 workspace 布局的装法：link:<repo>/packages/dsh-demo
+    mkdirSync(join(repo, 'packages', 'dsh-demo'), { recursive: true })
+    mkdirSync(join(profile, 'node_modules', '@dreamariner'), { recursive: true })
+    symlinkSync(join(repo, 'packages', 'dsh-demo'), join(profile, 'node_modules', '@dreamariner', 'dsh-demo'))
+    writeFileSync(join(profile, 'package.json'), JSON.stringify({
+      name: 'profile',
+      dependencies: { '@dreamariner/dsh-demo': `link:${repo}/packages/dsh-demo` },
+      dsh: { profile: { bundles: ['@dreamariner/dsh-demo'] } },
+    }, null, 2) + '\n')
+    try {
+      const report = migrateRootLinkInstalls(
+        opts({ targetDir: repo, pluginId: 'dsh-demo', packageName: '@dreamariner/dsh-demo', type: 'host' }),
+        home, false,
+      )
+      expect(report.migrated).toHaveLength(1)
+      expect(report.migrated[0]).toMatchObject({ profile: 'desktop', renamed: false, to: `link:${repo}` })
+      const m = JSON.parse(readFileSync(join(profile, 'package.json'), 'utf8'))
+      expect(m.dependencies['@dreamariner/dsh-demo']).toBe(`link:${repo}`)
+      expect(m.dsh.profile.bundles).toEqual(['@dreamariner/dsh-demo'])
+    } finally { rmSync(home, { recursive: true, force: true }); rmSync(repo, { recursive: true, force: true }) }
+  })
+
+  it('toRoot（回迁单包）：包名变了连键与 bundles 一起改', () => {
+    const home = mkdtempSync(join(tmpdir(), 'mig-home3-'))
+    const repo = mkdtempSync(join(tmpdir(), 'mig-repo3-'))
+    const profile = join(home, 'profiles', 'desktop')
+    mkdirSync(join(repo, 'packages', 'dsh-demo'), { recursive: true })
+    mkdirSync(join(profile, 'node_modules', '@dreamariner'), { recursive: true })
+    symlinkSync(join(repo, 'packages', 'dsh-demo'), join(profile, 'node_modules', '@dreamariner', 'dsh-demo'))
+    writeFileSync(join(profile, 'package.json'), JSON.stringify({
+      name: 'profile',
+      dependencies: { '@dreamariner/dsh-demo': `link:${repo}/packages/dsh-demo` },
+      dsh: { profile: { bundles: ['@dreamariner/dsh-demo'] } },
+    }, null, 2) + '\n')
+    try {
+      const report = migrateRootLinkInstalls(
+        opts({ targetDir: repo, pluginId: 'dsh-demo', packageName: '@dreamariner/dsh-demo-v2', type: 'client' }),
+        home, false,
+      )
+      expect(report.migrated[0]).toMatchObject({ renamed: true })
+      const m = JSON.parse(readFileSync(join(profile, 'package.json'), 'utf8'))
+      expect(m.dependencies['@dreamariner/dsh-demo']).toBeUndefined()
+      expect(m.dependencies['@dreamariner/dsh-demo-v2']).toBe(`link:${repo}`)
+      expect(m.dsh.profile.bundles).toEqual(['@dreamariner/dsh-demo-v2'])
+    } finally { rmSync(home, { recursive: true, force: true }); rmSync(repo, { recursive: true, force: true }) }
   })
 
   it('link 指向别处的不动', () => {
@@ -119,7 +170,7 @@ describe('migrateRootLinkInstalls', () => {
     }))
     try {
       const report = migrateRootLinkInstalls(
-        opts({ targetDir: join(tmpdir(), 'mig-repo-absent'), pluginId: 'dsh-demo', packageName: '@dreamariner/dsh-demo' }),
+        opts({ targetDir: join(tmpdir(), 'mig-repo-absent'), pluginId: 'dsh-demo', packageName: '@dreamariner/dsh-demo', type: 'full' }),
         home, false,
       )
       expect(report.migrated).toHaveLength(0)

@@ -63,7 +63,9 @@ export async function promptScaffold(argv: string[]): Promise<ScaffoldOptions> {
 function workspaceProblem(dir: string, pluginId: string): string | undefined {
   if (!existsSync(dir) || !statSync(dir).isDirectory()) return `目录不存在：${dir}`
   if (!existsSync(resolve(dir, 'pnpm-workspace.yaml')) || !existsSync(resolve(dir, 'packages'))) {
-    return `${dir} 不是 create-dsh-plugin 生成的 workspace 仓（缺 pnpm-workspace.yaml 或 packages/）:add 只用于向既有仓追加插件`
+    return `${dir} 不是 workspace 仓（缺 pnpm-workspace.yaml 或 packages/）：add 只面向 workspace 布局`
+        + '（full 生成仓）。host / client 单包仓要加插件或升级 full，用 create --dir <本仓> 重排，'
+        + 'profile 里的旧 link 安装会自动迁移'
   }
   if (existsSync(resolve(dir, 'packages', pluginId))) {
     return `packages/${pluginId} 已存在：这个插件已经在本仓里了`

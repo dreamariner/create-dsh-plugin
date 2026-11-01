@@ -2,14 +2,14 @@
 // 这是「模板矩阵没断链」的最低保障：新增模板文件不进 plan、占位符改名不同步，
 // 在这里第一时间红。
 //
-// 三形态统一 workspace 布局（根壳 + packages/<id>/ 插件包）：add 追加插件的根接线
-// （tsconfig.host.json 引用追加 / 按模板现生成）也在本文件覆盖。
+// 布局按形态走：full → workspace（根壳 + packages/<id>/，typert 硬约束）；
+// host / client → single（根即插件包，安装一步到位）。add 只面向 workspace 仓。
 import { describe, expect, it } from 'vitest'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildPlan, buildPluginPlan, buildRootPlan, renderPluginPackage, renderProject, substitutionsOf } from '../src/render.ts'
-import { buildManifests, buildPackageManifest } from '../src/manifest.ts'
+import { buildManifests, buildPackageManifest, layoutOf } from '../src/manifest.ts'
 import { wireHostFaceConfig } from '../src/finalize.ts'
 import type { PluginType, ScaffoldOptions } from '../src/types.ts'
 
@@ -30,23 +30,18 @@ function fakeOpts(type: PluginType, over: Partial<ScaffoldOptions> = {}): Scaffo
   }
 }
 
-/** 三形态统一的根壳文件。根 scripts/ 是项目共用脚本的家（一仓一份）。 */
-const ROOT_FILES = [
+// ── single 布局（host / client）：根 = 插件包 ──────────────────────────────
+const SINGLE_ROOT = ['.gitignore', 'README.md', 'LICENSE', 'vitest.config.ts', 'scripts/lib/manifest-deps.mjs']
+const SINGLE_ROOT_HOST = [...SINGLE_ROOT, 'scripts/dev-hmr.mjs']
+// ── workspace 布局（full）：根壳 + 项目共用脚本 ─────────────────────────────
+const WORKSPACE_ROOT = [
   '.gitignore', 'README.md', 'LICENSE', 'pnpm-workspace.yaml', 'tsconfig.json', 'vitest.config.ts',
   'scripts/lib/manifest-deps.mjs', 'scripts/sync-pack-docs.mjs',
+  'scripts/dev-hmr.mjs', 'tsconfig.host.json', 'scripts/ensure-protocol.mjs',
 ]
-/** host / full 的根壳额外文件（项目级 hmr 接线）。 */
-const HMR_ROOT_EXTRA = ['scripts/dev-hmr.mjs']
-/** full 额外的根壳文件（typert 聚合配置 + 协议声明源 preinstall 守卫）。 */
-const FULL_ROOT_EXTRA = ['tsconfig.host.json', 'scripts/ensure-protocol.mjs']
 
-function rootFilesOf(type: PluginType): string[] {
-  const base = type === 'host' || type === 'full' ? [...ROOT_FILES, ...HMR_ROOT_EXTRA] : ROOT_FILES
-  return type === 'full' ? [...base, ...FULL_ROOT_EXTRA] : base
-}
-
-/** 插件包文件清单（packages/<id>/ 下，不含 package.json：manifest 程序化写，不进 plan）。
- *  插件包内无 scripts/：共用脚本（hmr / 依赖策略 / 文档同步）都住根 scripts/。 */
+/** 插件包文件清单（single 落根，workspace 落 packages/<id>/；不含 package.json：
+ *  manifest 程序化写，不进 plan）。 */
 function expectedPluginFiles(type: PluginType): string[] {
   const common = ['tsconfig.json', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'tests/setup.ts']
   const tsdown = ['tsdown.config.ts']
@@ -58,101 +53,108 @@ function expectedPluginFiles(type: PluginType): string[] {
   return [...common, ...tsdown, ...host, ...client, ...typert, 'tests/bundle-shape.spec.ts']
 }
 
+function rootFilesOf(type: PluginType): string[] {
+  if (layoutOf(type) === 'single') return type === 'host' ? SINGLE_ROOT_HOST : SINGLE_ROOT
+  return WORKSPACE_ROOT
+}
+
 function render(type: PluginType): { dir: string; count: number } {
   const dir = mkdtempSync(join(tmpdir(), `create-dsh-plugin-test-${type}-`))
   const count = renderProject(fakeOpts(type, { targetDir: dir }))
   return { dir, count }
 }
 
-const PLUGINS: Record<PluginType, string> = { host: 'packages/dsh-demo', client: 'packages/dsh-demo', full: 'packages/dsh-demo' }
-
-describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
+describe('模板矩阵（布局按形态走）', () => {
   for (const type of TYPES) {
-    it(`${type}：计划与实际产出一致（根壳 + packages/dsh-demo/）`, () => {
+    const single = layoutOf(type) === 'single'
+    const pluginDir = single ? '.' : 'packages/dsh-demo'
+
+    it(`${type}：计划与实际产出一致`, () => {
       const plan = buildPlan(type, 'dsh-demo').map((f) => f.to).sort()
-      const want = [...rootFilesOf(type), ...expectedPluginFiles(type).map((f) => `packages/dsh-demo/${f}`)].sort()
-      expect(plan).toEqual(want)
+      const plugin = expectedPluginFiles(type).map((f) => `${pluginDir === '.' ? '' : 'packages/dsh-demo/'}${f}`)
+      // package.json 是程序化写的，不进 plan
+      expect(plan).toEqual([...rootFilesOf(type), ...plugin].sort())
     })
 
-    it(`${type}：渲染无占位符残留、根壳与插件 manifest 形态正确`, () => {
+    it(`${type}：渲染无占位符残留、manifest 形态正确`, () => {
       const { dir, count } = render(type)
       try {
-        expect(count).toBe(2 + rootFilesOf(type).length + expectedPluginFiles(type).length)
+        const all = [...rootFilesOf(type), ...expectedPluginFiles(type).map((f) => `${pluginDir === '.' ? '' : 'packages/dsh-demo/'}${f}`)]
+        expect(count).toBe(all.length + (single ? 1 : 2)) // + manifest：single 一份（根），workspace 两份
 
-        // 全部文本文件无占位符残留、无未处理条件块
-        for (const rel of [...rootFilesOf(type), ...expectedPluginFiles(type).map((f) => `${PLUGINS[type]}/${f}`), 'package.json', `${PLUGINS[type]}/package.json`]) {
+        for (const rel of all) {
           if (rel.endsWith('LICENSE')) continue
           const text = readFileSync(join(dir, rel), 'utf8')
-          expect(text.match(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL)__/), `${rel} 有占位符残留`).toBeNull()
+          expect(text.match(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL)__/), `${rel} 有占位符残留`).toBeNull()
           expect(text.match(/<!--#if/), `${rel} 有未处理的条件块`).toBeNull()
         }
 
-        // 根 manifest：三形态一律是 private workspace 壳，脚本 -r 递归转发（加包不改根）
-        // 根壳名跟项目名（缺省 = 插件 id），不跟包名
-        const root = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
-        expect(root.name).toBe('dsh-demo-workspace')
-        expect(root.private).toBe(true)
-        expect(root.packageManager).toBe('pnpm@11.7.0')
-        expect(root.scripts.build).toBe('pnpm -r build')
-        expect(root.scripts.dev).toBe('pnpm -r --parallel dev')
-        expect(root.scripts.prepare).toBe('pnpm -r build')
-        expect(root.scripts.test).toBe('vitest run')
-        expect(root.scripts.typecheck).toBe('tsc --noEmit -p tsconfig.json')
-        if (type === 'host' || type === 'full') {
-          // 项目级 hmr：根壳直调 scripts/dev-hmr.mjs（一仓一份，注册全部插件包 lib/）
-          expect(root.scripts['dev:hmr']).toBe('node scripts/dev-hmr.mjs')
-        } else {
-          expect(root.scripts['dev:hmr']).toBeUndefined()
-        }
-        if (type === 'full') {
-          // 协议声明源守卫住根壳 preinstall（发布包没有 scripts/，跟包走会崩）
-          expect(root.scripts.preinstall).toBe('node scripts/ensure-protocol.mjs')
-        }
-        expect(root.exports).toBeUndefined()
+        const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+        expect(manifest.packageManager).toBe('pnpm@11.7.0')
 
-        // 根壳：workspace 声明通配 packages/*、根 vitest 通配全部插件包、根 tsconfig
-        // exclude 协议声明源（TS2717 防线）
-        expect(readFileSync(join(dir, 'pnpm-workspace.yaml'), 'utf8')).toContain('packages/*')
-        expect(readFileSync(join(dir, 'vitest.config.ts'), 'utf8')).toContain("include: ['packages/*/tests/**/*.spec.ts']")
-        expect(readFileSync(join(dir, 'tsconfig.json'), 'utf8')).toContain('"exclude": ["packages/protocol"]')
-
-        // 插件 manifest：测试与类型检查由根壳承载，发布面按官方 checklist
-        const plugin = JSON.parse(readFileSync(join(dir, 'packages/dsh-demo/package.json'), 'utf8'))
-        expect(plugin.name).toBe('@acme/dsh-demo')
-        expect(plugin.private).toBeUndefined()
-        expect(plugin.scripts.build).toBe('tsdown')
-        expect(plugin.scripts.prepare).toBe('tsdown && node ../../scripts/sync-pack-docs.mjs') // pack/publish/git 安装三路都同步文档
-        expect(plugin.scripts.prepublishOnly).toBeUndefined()
-        expect(plugin.scripts['dev:hmr']).toBeUndefined() // hmr 是项目级（根壳直调一份脚本）
-        expect(plugin.scripts.preinstall).toBeUndefined() // full 的守卫上移根壳
-        expect(plugin.scripts.test).toBeUndefined()
-        expect(plugin.scripts.typecheck).toBeUndefined()
-        expect(plugin.files).toContain('README.md') // npm 只自动收录包目录内的两件
-        expect(plugin.files).toContain('LICENSE')
-        expect(plugin.dsh.bundle.patch).toBe('./cordis.patch.yml')
-        // 展示元数据的导出面（官方 checklist：Plugin Manager 在不激活插件时经 exports 读取）
-        expect(plugin.exports['./locale/*.json']).toBe('./locale/*.json')
-        expect(plugin.exports['./icon']).toBe('./icon.svg')
-        if (type === 'host') {
-          expect(plugin.dsh.client).toBeUndefined()
-          expect(plugin.exports['./client']).toBeUndefined()
-          expect(plugin.peerDependencies['@deepseek-ai/schemastery']).toBeTypeOf('string')
-          expect(plugin.scripts['dev:hmr']).toBeUndefined() // hmr 是项目级（根壳直调一份脚本）
-          expect(plugin.devDependencies['react']).toBeUndefined()
-          expect(plugin.exports['./typert']).toBeUndefined()
+        if (single) {
+          // 根 = 插件包：名字就是包名，可发布（无 private），测试/类型检查本仓承载
+          expect(manifest.name).toBe('@acme/dsh-demo')
+          expect(manifest.private).toBeUndefined()
+          expect(manifest.scripts.build).toBe('tsdown')
+          expect(manifest.scripts.prepare).toBe('tsdown') // 根=包，README/LICENSE 由 npm 自动收录
+          expect(manifest.scripts.test).toBe('vitest run')
+          expect(manifest.scripts.typecheck).toBe('tsc --noEmit -p tsconfig.json')
+          expect(manifest.scripts['dev:hmr']).toBe(type === 'host' ? 'node scripts/dev-hmr.mjs' : undefined)
+          expect(manifest.exports['.']).toBe('./lib/index.js')
+          expect(manifest.files).toContain('README.md')
+          expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
+          // 单包没有 workspace 基建
+          expect(existsSync(join(dir, 'pnpm-workspace.yaml'))).toBe(false)
+          expect(existsSync(join(dir, 'packages'))).toBe(false)
+          expect(existsSync(join(dir, 'scripts/sync-pack-docs.mjs'))).toBe(false)
+          // vitest / tsconfig 是单包版
+          expect(readFileSync(join(dir, 'vitest.config.ts'), 'utf8')).toContain("include: ['tests/**/*.spec.ts']")
+          const ts = readFileSync(join(dir, 'tsconfig.json'), 'utf8')
+          expect(ts).not.toContain('"extends"')
+          expect(ts).toContain('"src/**/*.ts"')
+          // tsdown 引用本仓 scripts（占位符已按布局替换）；client 构建不用 manifest 派生
+          if (type === 'host') expect(readFileSync(join(dir, 'tsdown.config.ts'), 'utf8')).toContain("from './scripts/lib/manifest-deps.mjs'")
+          // README 是单包版（仓根 link 安装，无 #path: 子目录形态）
+          const readme = readFileSync(join(dir, 'README.md'), 'utf8')
+          expect(readme).toContain('单包布局')
+          expect(readme).toContain('pnpm add link:<本仓路径> --dir <profile目录>')
+          expect(readme).not.toContain('#path:packages/')
+          if (type === 'host') {
+            expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBeTypeOf('string')
+            expect(manifest.devDependencies['@deepseek-ai/cordis']).toBe('4.0.5')
+            expect(manifest.devDependencies['react']).toBeUndefined()
+            expect(manifest.exports['./client']).toBeUndefined()
+            expect(manifest.dsh.client).toBeUndefined()
+          } else {
+            expect(manifest.peerDependencies).toBeUndefined()
+            expect(manifest.dsh.client.platform).toBe('web')
+            expect(manifest.exports['./client']).toBe('./lib/client.js')
+            expect(manifest.devDependencies['react']).toBeTypeOf('string')
+            expect(readFileSync(join(dir, 'tsdown.config.ts'), 'utf8')).toContain('EXTERNALS')
+          }
         } else {
-          expect(plugin.dsh.client.platform).toBe('web')
-          expect(plugin.exports['./client']).toBe('./lib/client.js')
-          expect(plugin.devDependencies['react']).toBeTypeOf('string')
-        }
-        if (type === 'client') {
-          expect(plugin.peerDependencies).toBeUndefined()
-          expect(plugin.scripts['dev:hmr']).toBeUndefined()
-          expect(plugin.devDependencies['@deepseek-ai/schemastery']).toBeUndefined()
-          expect(plugin.exports['./typert']).toBeUndefined()
-        }
-        if (type === 'full') {
-          // typert 接线四件套：peer + 裸精确 pin + 生成器 devDep + 生成产物导出面
+          // workspace：根壳 private、脚本 -r 转发、插件 manifest 在 packages/<id>/
+          expect(manifest.name).toBe('dsh-demo-workspace')
+          expect(manifest.private).toBe(true)
+          expect(manifest.scripts.build).toBe('pnpm -r build')
+          expect(manifest.scripts.prepare).toBe('pnpm -r build')
+          expect(manifest.scripts.preinstall).toBe('node scripts/ensure-protocol.mjs')
+          expect(manifest.exports).toBeUndefined()
+          expect(readFileSync(join(dir, 'pnpm-workspace.yaml'), 'utf8')).toContain('packages/*')
+          expect(readFileSync(join(dir, 'vitest.config.ts'), 'utf8')).toContain("include: ['packages/*/tests/**/*.spec.ts']")
+          expect(readFileSync(join(dir, 'tsconfig.json'), 'utf8')).toContain('"exclude": ["packages/protocol"]')
+          expect(readFileSync(join(dir, 'packages/dsh-demo/tsdown.config.ts'), 'utf8')).toContain('typertPlugin')
+
+          const plugin = JSON.parse(readFileSync(join(dir, 'packages/dsh-demo/package.json'), 'utf8'))
+          expect(plugin.name).toBe('@acme/dsh-demo')
+          expect(plugin.private).toBeUndefined()
+          expect(plugin.scripts.prepare).toBe('tsdown && node ../../scripts/sync-pack-docs.mjs')
+          expect(plugin.scripts.test).toBeUndefined() // 测试由根壳承载
+          expect(plugin.files).toContain('README.md')
+          expect(plugin.dsh.bundle.patch).toBe('./cordis.patch.yml')
+          expect(plugin.exports['./locale/*.json']).toBe('./locale/*.json')
+          expect(plugin.exports['./icon']).toBe('./icon.svg')
           expect(plugin.peerDependencies['@deepseek-ai/dsh-typert-protocol']).toBe('>=0.2.1-rc.3 <0.3.0-0')
           expect(plugin.devDependencies['@deepseek-ai/dsh-typert-protocol']).toBe('0.2.1-rc.3')
           expect(plugin.devDependencies['@deepseek-ai/dsh-typert-generator']).toBe('0.2.1-rc.3')
@@ -161,13 +163,9 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
           expect(plugin.dependencies.zod).toBe('^4.4.3')
           expect(readFileSync(join(dir, 'scripts/ensure-protocol.mjs'), 'utf8')).toContain('packages/protocol')
           expect(readFileSync(join(dir, 'tsconfig.host.json'), 'utf8')).toContain('packages/protocol/src/index.ts')
-          expect(readFileSync(join(dir, 'packages/dsh-demo/tsdown.config.ts'), 'utf8')).toContain('typertPlugin')
           expect(readFileSync(join(dir, 'packages/dsh-demo/tsconfig.typert.json'), 'utf8')).toContain('extends')
           expect(readFileSync(join(dir, 'README.md'), 'utf8')).toContain('typert：client 与 host 的类型化 RPC')
         }
-
-        // README 的形态标签已替换
-        expect(readFileSync(join(dir, 'README.md'), 'utf8')).toContain('形态：')
       } finally {
         rmSync(dir, { recursive: true, force: true })
       }
@@ -183,41 +181,39 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
     expect(client.devDependencies['react']).toBe('^18.2.0')
     const full = buildManifests({ packageName: 'c', pluginId: 'c', description: 'c', type: 'full' })
     expect(full.root.name).toBe('c-workspace')
-    expect((full.plugin.devDependencies as Record<string, string>)['@deepseek-ai/dsh-typert-generator']).toBe('0.2.1-rc.3')
+    expect((full.plugin!.devDependencies as Record<string, string>)['@deepseek-ai/dsh-typert-generator']).toBe('0.2.1-rc.3')
   })
 
-  it('substitutions 覆盖全部占位符名（__PLUGIN_REL__ 三形态统一指向 packages/<id>）', () => {
-    const sub = substitutionsOf(fakeOpts('full'))
-    expect(Object.keys(sub).sort()).toEqual(['__DESCRIPTION__', '__PACKAGE_NAME__', '__PASCAL_NAME__', '__PLUGIN_ID__', '__PLUGIN_REL__', '__PLUGIN_TYPE_LABEL__', '__PROJECT_NAME__', '__SERVICE_KEY__', '__TITLE__'].sort())
-    expect(sub.__PASCAL_NAME__).toBe('Demo') // dsh-demo → Demo
-    expect(sub.__SERVICE_KEY__).toBe('demo') // dsh-demo → demo（camelCase 服务键）
-    expect(sub.__PLUGIN_REL__).toBe('packages/dsh-demo')
-    expect(sub.__PROJECT_NAME__).toBe('dsh-demo') // 缺省 = 插件 id
+  it('substitutions 布局感知（__PLUGIN_REL__ / __MANIFEST_DEPS_REL__）', () => {
+    const subFull = substitutionsOf(fakeOpts('full'))
+    expect(subFull.__PLUGIN_REL__).toBe('packages/dsh-demo')
+    expect(subFull.__MANIFEST_DEPS_REL__).toBe('../../scripts/lib/manifest-deps.mjs')
+    const subHost = substitutionsOf(fakeOpts('host'))
+    expect(subHost.__PLUGIN_REL__).toBe('.')
+    expect(subHost.__MANIFEST_DEPS_REL__).toBe('./scripts/lib/manifest-deps.mjs')
+    expect(subHost.__PASCAL_NAME__).toBe('Demo')
+    expect(subHost.__SERVICE_KEY__).toBe('demo')
   })
 
-  it('自定义项目名：根壳名与 README 标题跟项目名，包名不受影响', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-projname-'))
+  it('single 布局没有项目名概念：projectName 被忽略，根名 = 包名', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-single-name-'))
     try {
       renderProject(fakeOpts('host', { projectName: 'my-otter-plugins', targetDir: dir }))
       const root = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
-      // 显式项目名且 ≠ 插件 id：裸项目名，不加 -workspace 后缀（名字本身已无歧义）
-      expect(root.name).toBe('my-otter-plugins')
-      const plugin = JSON.parse(readFileSync(join(dir, 'packages/dsh-demo/package.json'), 'utf8'))
-      expect(plugin.name).toBe('@acme/dsh-demo') // 包名不动
-      const readme = readFileSync(join(dir, 'README.md'), 'utf8')
-      expect(readme).toContain('# my-otter-plugins')
-      expect(readme).toContain('@acme/dsh-demo')
+      expect(root.name).toBe('@acme/dsh-demo') // 项目名只在 workspace 布局有意义
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  it('显式项目名 = 插件 id：与缺省同形，保留 -workspace 后缀（与插件包目录区分）', () => {
-    const root = buildManifests({ packageName: '@acme/dsh-demo', pluginId: 'dsh-demo', description: 'd', type: 'client', projectName: 'dsh-demo' }).root as { name: string }
-    expect(root.name).toBe('dsh-demo-workspace')
+  it('workspace 自定义项目名：根壳名跟项目名，包名不受影响', () => {
+    const root = buildManifests({ packageName: '@acme/dsh-demo', pluginId: 'dsh-demo', description: 'd', type: 'full', projectName: 'my-otter-plugins' }).root as { name: string }
+    expect(root.name).toBe('my-otter-plugins')
+    const root2 = buildManifests({ packageName: '@acme/dsh-demo', pluginId: 'dsh-demo', description: 'd', type: 'full', projectName: 'dsh-demo' }).root as { name: string }
+    expect(root2.name).toBe('dsh-demo-workspace')
   })
 
-  it('条件块按类型保留或剔除', () => {
+  it('条件块按类型保留或剔除（两份 README 模板各自成立）', () => {
     const readme = (t: PluginType): string => {
       const dir = mkdtempSync(join(tmpdir(), `create-dsh-plugin-test-cond-${t}-`))
       try {
@@ -243,11 +239,11 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
   })
 })
 
-describe('add：向既有 workspace 追加插件包', () => {
-  it('追加后插件包完整落位，且根壳按通配自动覆盖（无需改根）', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-add-host-'))
+describe('add：向既有 workspace 仓追加插件包', () => {
+  it('追加后插件包完整落位，根壳按通配自动覆盖（无需改根）', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-add-full-'))
     try {
-      renderProject(fakeOpts('host', { targetDir: dir }))
+      renderProject(fakeOpts('full', { targetDir: dir }))
       const before = readFileSync(join(dir, 'package.json'), 'utf8')
 
       const n = renderPluginPackage(fakeOpts('client', {
@@ -264,16 +260,16 @@ describe('add：向既有 workspace 追加插件包', () => {
       expect(added.name).toBe('@acme/dsh-bar')
       expect(added.scripts.test).toBeUndefined() // 测试由根壳承载
       expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(before) // 根壳不动
-      expect(existsSync(join(dir, 'tsconfig.host.json'))).toBe(false) // host 仓无 typert 聚合
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  it('add(full) 到 host / client 仓：tsconfig.host.json 按模板现生成（protocol + 新插件）', () => {
+  it('add(full) 到无 tsconfig.host.json 的仓：按模板现生成（protocol + 新插件）', () => {
     const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-add-full1-'))
     try {
-      renderProject(fakeOpts('client', { targetDir: dir }))
+      renderProject(fakeOpts('full', { targetDir: dir }))
+      rmSync(join(dir, 'tsconfig.host.json'), { force: true }) // 模拟「仓里还没有 full 聚合」
       expect(wireHostFaceConfig(dir, 'dsh-bar', 'full')).toBe('created')
       const text = readFileSync(join(dir, 'tsconfig.host.json'), 'utf8')
       expect(text).toContain('{ "path": "packages/protocol" }')
@@ -331,7 +327,10 @@ describe('add：向既有 workspace 追加插件包', () => {
     }
   })
 
-  it('buildPluginPlan / buildRootPlan 可独立取用（add 只需要插件清单）', () => {
-    expect(buildPluginPlan('host', 'x').every((f) => f.to.startsWith('packages/x/'))).toBe(true)
-    expect(buildRootPlan('client').map((f) => f.to)).toEqual(ROOT_FILES)
-  })})
+  it('buildPluginPlan / buildRootPlan 可独立取用', () => {
+    expect(buildPluginPlan('host', 'x').every((f) => f.to.startsWith('packages/x/'))).toBe(true) // workspace 语义（add 用）
+    expect(buildRootPlan('client').map((f) => f.to)).toEqual(SINGLE_ROOT)
+    expect(buildRootPlan('host').map((f) => f.to)).toEqual(SINGLE_ROOT_HOST)
+    expect(buildRootPlan('full').map((f) => f.to)).toEqual(WORKSPACE_ROOT)
+  })
+})

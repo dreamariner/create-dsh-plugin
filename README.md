@@ -19,14 +19,15 @@ pnpm dlx github:dreamariner/create-dsh-plugin @dreamariner/dsh-foo --type host
 
 ## 追加插件（add）
 
-生成的仓默认带一个插件；之后在**仓根**执行 `add` 继续追加，无需迁移结构：
+workspace 仓（full 生成仓）默认带一个插件；之后在**仓根**执行 `add` 继续追加，
+无需迁移结构：
 
 ```sh
 npx @dreamariner/create-dsh-plugin add @dreamariner/dsh-bar --type client
 npx @dreamariner/create-dsh-plugin add @dreamariner/dsh-panel --type full
 ```
 
-- 三种形态统一 workspace 布局（根壳 + `packages/<id>/` 插件包），`add` 只写新插件包
+- `add` 只写新插件包（`packages/<id>/`），根壳按 `pnpm -r` / 通配自动收编
 - **重排既有仓**（create 对非空 `--dir`）：自动把本机 DSH profile（`$DSH_HOME/profiles/`，
   默认 `~/.dsh`）里 `link:<仓根>` 形态的旧安装迁到 `packages/<id>` 子路径并跑
   `pnpm install`；包名变了就连 dependencies 键与 `dsh.profile.bundles` 名单一起改。

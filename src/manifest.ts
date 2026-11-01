@@ -28,18 +28,26 @@ export interface ManifestInput {
   projectName?: string
 }
 
+/** 仓库布局按形态走，不按假设走：
+ *  - full → workspace：typert 生成器结构性要求「被分析的包位于 <root>/packages/ 下」
+ *    （loadRegistrations 的 isWithin 检查），协议声明源 submodule 也要仓库级挂载点；
+ *  - host / client → single：根 = 插件包。绝大多数插件是单仓单插件，单包让
+ *    npm / git / dsh CLI 三条安装路都一步到位，也没有根壳与包名的认知负担。
+ *  跨形态升级（host 仓长出 full 插件等）用 create --dir 重排，profile 旧装法自动迁移。 */
+export function layoutOf(type: PluginType): 'workspace' | 'single' {
+  return type === 'full' ? 'workspace' : 'single'
+}
+
 /**
- * 三形态统一 workspace 布局（根壳 + packages/<id>/ 插件包）：
- * 默认一个插件，但结构上支持用 add 子命令追加任意多个插件。
- * full 的 typert 生成器结构性要求「被分析的包位于 <root>/packages/ 下」
- * （loadRegistrations 的 isWithin 检查，tsdown 插件路径 includeVendor 恒 false）；
- * host / client 与它统一布局后，add 新插件不需要迁移仓结构。
+ * 按 layout 生成 manifest：
+ *  - workspace：{ root（private 壳）, plugin（packages/<id>/）}
+ *  - single：{ root = 插件包 manifest 本身 }（plugin 字段无意义，置 null）
  */
-export function buildManifests(input: ManifestInput): { root: Record<string, unknown>; plugin: Record<string, unknown> } {
-  return {
-    root: buildRootManifest(input),
-    plugin: buildPackageManifest(input),
+export function buildManifests(input: ManifestInput): { root: Record<string, unknown>; plugin: Record<string, unknown> | null } {
+  if (layoutOf(input.type) === 'single') {
+    return { root: buildSingleManifest(input), plugin: null }
   }
+  return { root: buildRootManifest(input), plugin: buildPackageManifest(input) }
 }
 
 /** workspace 根壳：private 壳，scripts 以 -r 递归转发（插件数无关），测试与类型检查在根。 */
@@ -79,7 +87,7 @@ function buildRootManifest(input: ManifestInput): Record<string, unknown> {
   }
 }
 
-/** 插件包 manifest（统一 workspace 布局：packages/<id>/）。 */
+/** 插件包 manifest（workspace 布局：packages/<id>/）。 */
 export function buildPackageManifest(input: ManifestInput): Record<string, unknown> {
   const { type, packageName, pluginId, description } = input
 
@@ -182,6 +190,29 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
     ...(peerDependencies !== undefined ? { peerDependencies } : {}),
     ...(dependencies !== undefined ? { dependencies } : {}),
     devDependencies,
+  }
+}
+
+/** single 布局（host / client）：根 = 插件包。在插件 manifest 上补齐原先由根壳
+ *  承载的部分（packageManager 钉版、test / typecheck），prepare 不再需要
+ *  sync-pack-docs（根 = 包，npm 自动收录 README / LICENSE）。 */
+export function buildSingleManifest(input: ManifestInput): Record<string, unknown> {
+  const base = buildPackageManifest(input) as Record<string, any>
+  return {
+    ...base,
+    packageManager: 'pnpm@11.7.0',
+    scripts: {
+      ...base.scripts,
+      // hmr 原是 workspace 根壳的脚本，single 布局下由本包承载
+      ...(input.type === 'host' ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
+      prepare: 'tsdown', // 根 = 包：README / LICENSE 由 npm 自动收录，无需同步
+      test: 'vitest run',
+      'test:watch': 'vitest',
+      typecheck: 'tsc --noEmit -p tsconfig.json',
+    },
+    devDependencies: {
+      ...base.devDependencies,
+    },
   }
 }
 

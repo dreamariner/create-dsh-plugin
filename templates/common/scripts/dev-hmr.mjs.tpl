@@ -28,11 +28,16 @@ const homePatch = join(dshHome, 'cordis.patch.yml')
 const packageDirs = existsSync(packagesDir)
   ? readdirSync(packagesDir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => join(packagesDir, e.name))
   : []
-// 本仓的 lib 目录集合（存在的才算：没构建的包注册了也没有产物可热重载）
-const libDirs = packageDirs.filter((d) => existsSync(join(d, 'lib'))).map((d) => join(d, 'lib'))
+// 本仓的 lib 目录集合（存在的才算：没构建的包注册了也没有产物可热重载）。
+// 单包布局（根即插件包，无 packages/）回退到根 lib/。
+const libDirs = existsSync(packagesDir)
+  ? packageDirs.filter((d) => existsSync(join(d, 'lib'))).map((d) => join(d, 'lib'))
+  : existsSync(join(repo, 'lib'))
+    ? [join(repo, 'lib')]
+    : []
 
 if (!remove && libDirs.length === 0) {
-  console.error('[dev-hmr] packages/*/lib 都不存在:先构建一次：pnpm build')
+  console.error('[dev-hmr] 没有可注册的 lib/（packages/*/lib 或根 lib/）:先构建一次：pnpm build')
   process.exit(1)
 }
 

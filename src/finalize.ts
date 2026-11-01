@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { layoutOf } from './manifest.ts'
 import { renderTemplateText } from './render.ts'
 import type { ScaffoldOptions } from './types.ts'
 
@@ -104,27 +105,36 @@ export function defaultDshHome(): string {
 }
 
 /**
- * 重排迁移：把本机 DSH profile 里「link:<仓根>」形态的旧安装迁到新布局。
+ * 重排迁移：把本机 DSH profile 里指向本仓的旧 link 安装迁到目标布局。
  *
- * 旧单包仓的唯一装法是 link:<仓根>。workspace 重排后根 manifest 被换成根壳
- * （无 dsh.bundle，包名变 <项目名>-workspace），loader 静默跳过——无报错、无日志、
- * 实例不重启连失效都不暴露（2026-11-01 minimax 实例）。pnpm 对 link: 依赖不跑
- * 生命周期脚本，所以根壳没有任何钩子能在被误装时喊出来；唯一可靠的修复时机就是
- * 重排本身：此刻旧 link 值还指向本仓，按 realpath 精确匹配后原地迁走。
+ * pnpm 对 link: 依赖不跑生命周期脚本，根壳没有任何钩子能在被误装时喊出来；唯一
+ * 可靠的修复时机就是重排本身：此刻旧 link 值还指向本仓，按 realpath 精确匹配后
+ * 原地迁走。npm 发布版与 github 克隆是快照，不受重排影响，均无需迁。
  *
- * 迁移动作 = 依赖值改指 packages/<id>；旧包名 ≠ 新包名时连 dependencies 键与
- * dsh.profile.bundles 名单一起改名。改完跑一次 profile 的 pnpm install 让 symlink
- * 真正重指。npm 发布版不受重排影响（tarball 是快照），github 克隆安装同理，均无需迁。
+ * 方向由布局决定：
+ *  - workspace（full 重排）：`link:<仓根>` → `link:<仓根>/packages/<id>`（旧单包
+ *    装法失效的根因是根 manifest 换成根壳：无 dsh.bundle、包名变 <项目名>-workspace，
+ *    loader 静默跳过，实例不重启连失效都不暴露。2026-11-01 minimax 实例）。
+ *  - single（回迁单包）：`link:<仓根>` 或 `link:<仓根>/packages/<id>` →
+ *    `link:<仓根>`（单包布局正确装法就是仓根本身）。
+ *
+ * 两种方向都处理包名迁移：旧键 ≠ 新包名时连 dependencies 键与 dsh.profile.bundles
+ * 名单一起改。改完跑一次 profile 的 pnpm install 让 symlink 真正重指。
  */
 export function migrateRootLinkInstalls(
-  opts: Pick<ScaffoldOptions, 'targetDir' | 'pluginId' | 'packageName'>,
+  opts: Pick<ScaffoldOptions, 'targetDir' | 'pluginId' | 'packageName' | 'type'>,
   homeDir: string = defaultDshHome(),
   runInstall = true,
 ): ProfileMigrationReport {
   const report: ProfileMigrationReport = { ran: true, migrated: [], errors: [] }
   const profilesDir = join(homeDir, 'profiles')
+  const toSubdir = layoutOf(opts.type) === 'workspace'
   let rootReal: string
   try { rootReal = realpathSync(opts.targetDir) } catch { return report }
+  // toRoot 方向额外接受旧的子路径形态（workspace 回迁单包）
+  const subpathReal = (() => {
+    try { return realpathSync(join(opts.targetDir, 'packages', opts.pluginId)) } catch { return null }
+  })()
   if (!existsSync(profilesDir)) return report
 
   for (const entry of readdirSync(profilesDir, { withFileTypes: true })) {
@@ -144,10 +154,15 @@ export function migrateRootLinkInstalls(
       if (typeof value !== 'string' || !value.startsWith('link:')) continue
       let valueReal: string
       try { valueReal = realpathSync(value.slice('link:'.length)) } catch { continue }
-      if (valueReal !== rootReal) continue
+      const hit = toSubdir ? valueReal === rootReal : (valueReal === rootReal || valueReal === subpathReal)
+      if (!hit) continue
 
       // 命中旧装法：迁移值 + （必要时）迁移包名键与 bundles 名单
-      const newPath = `${value.replace(/\/+$/, '')}/packages/${opts.pluginId}`
+      // 尾段用字符串比对剥掉（正则字面量不能插值）
+      const tail = `/packages/${opts.pluginId}`
+      let base = value.replace(/\/+$/, '')
+      if (base.endsWith(tail)) base = base.slice(0, -tail.length)
+      const newPath = toSubdir ? `${base}/packages/${opts.pluginId}` : base
       const renamed = key !== opts.packageName
       if (renamed) {
         delete deps[key]
@@ -198,9 +213,9 @@ export function finalize(
     }
   }
 
-  // 重排迁移：先于 pnpm install（迁的是外部 profile，与本仓安装互不影响）。
-  // pre.wasNonEmpty 在渲染前采样（渲染后目录必然非空），oldPackageName 是被覆盖前
-  // 的根 manifest 名，用于识别需要连键一起迁移的形态。
+  // 重排迁移：先于 pnpm install（迁的是外部 profile，与本仓安装互不影响），方向
+  // 由布局决定（full → 子路径；host/client → 回归根）。pre.wasNonEmpty 在渲染前
+  // 采样（渲染后目录必然非空）。
   if (opts.command === 'create' && pre?.wasNonEmpty) {
     result.migration = migrateRootLinkInstalls(opts, undefined, true)
   }
