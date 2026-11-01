@@ -66,6 +66,7 @@ export function buildPluginPlan(type: PluginType, pluginId: string): RenderFile[
     { from: 'common/locale/zh.json.tpl', to: `${p}/locale/zh.json` },
     { from: 'common/icon.svg.tpl', to: `${p}/icon.svg` },
     { from: 'common/tests/setup.ts.tpl', to: `${p}/tests/setup.ts` },
+    { from: 'common/scripts/sync-pack-docs.mjs', to: `${p}/scripts/sync-pack-docs.mjs` },
     { from: 'tsconfig/plugin.json.tpl', to: `${p}/tsconfig.json` },
   ]
   const hostHalf: RenderFile[] = [

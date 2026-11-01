@@ -136,10 +136,12 @@ export function printNextSteps(opts: ScaffoldOptions, result: FinalizeResult): v
     '',
     '安装进 profile（desktop profile 不接受 CLI 转发时，用 pnpm 直调或 app 内 Plugin Manager）：',
     `  dsh plugin --profile <name> add ${opts.packageName}`,
-    '  # 或从 git：dsh plugin --profile <name> add github:dreamariner/<repo>',
+    '  # 从 git：workspace 仓的 dsh CLI github: 形态装的是仓根壳（无 dsh.bundle，',
+    '  # 会被插件管理器跳过），用 pnpm 的 path: 语法直装插件包子目录：',
+    `  pnpm add "github:<owner>/<repo>#path:packages/${opts.pluginId}" --dir <profile目录>`,
     '',
     '发布（单插件包）：',
-    `  pnpm --filter ${opts.packageName} publish   # prepare 自动构建 lib/；scoped 包已配 access=public`,
+    `  pnpm --filter ${opts.packageName} publish   # prepublishOnly 同步 README/LICENSE，prepare 构建 lib/`,
   )
   if (opts.type === 'full' && result.protocolSubmodule !== 'added') {
     lines.push(

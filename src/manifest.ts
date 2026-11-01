@@ -149,14 +149,17 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
     dev: 'tsdown --watch',
     ...(hasHost ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
     prepare: 'tsdown',
+    // npm 只自动收录包目录内的 README / LICENSE（仓根的进不了 tarball）：
+    // 打包前从仓根同步（产物 gitignore，真源在仓根）
+    prepublishOnly: 'node scripts/sync-pack-docs.mjs',
   }
   // test / typecheck 由 workspace 根壳承载（根 vitest 与根 tsconfig 覆盖全部插件包）
 
   // typert 生成器硬性校验：files 必须显式包含它要 emit 的 4 个产物文件
   // （缺一项构建期直接报「package files must include lib/typert.host.js」）。
   const files: string[] = hasTypert
-    ? ['lib', 'lib/typert.host.js', 'lib/typert.host.d.ts', 'lib/typert.remote-client.js', 'lib/typert.remote-client.d.ts', 'src', 'cordis.patch.yml', 'locale', 'icon.svg']
-    : ['lib', 'src', 'cordis.patch.yml', 'locale', 'icon.svg']
+    ? ['lib', 'lib/typert.host.js', 'lib/typert.host.d.ts', 'lib/typert.remote-client.js', 'lib/typert.remote-client.d.ts', 'src', 'cordis.patch.yml', 'locale', 'icon.svg', 'README.md', 'LICENSE']
+    : ['lib', 'src', 'cordis.patch.yml', 'locale', 'icon.svg', 'README.md', 'LICENSE']
 
   return {
     name: packageName,

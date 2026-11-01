@@ -13,8 +13,9 @@ __PACKAGE_NAME__：__DESCRIPTION__（由 create-dsh-plugin 生成的 DeepSeek Ha
 
 ```sh
 dsh plugin --profile <name> add __PACKAGE_NAME__   # npm（发布后）
-# 或从 git（pnpm 会在装后跑 prepare 自动构建 lib/）：
-dsh plugin --profile <name> add github:dreamariner/<repo>
+# 从 git 安装：workspace 仓的 dsh CLI github: 形态装的是仓根壳（无 dsh.bundle，
+# 会被插件管理器跳过），要用 pnpm 的 path: 语法直装插件包子目录：
+pnpm add "github:<owner>/<repo>#path:packages/__PLUGIN_ID__" --dir <profile目录>
 ```
 
 <!--#if full-->
@@ -22,10 +23,11 @@ dsh plugin --profile <name> add github:dreamariner/<repo>
 > （preinstall 守卫会在缺失时给出同样指引）。
 
 <!--#endif-->
-> desktop profile 不接受 CLI 的 pnpm 转发：改用 app 内 Plugin Manager 安装，或
-> `pnpm add __PACKAGE_NAME__ --dir <profile目录>` 直调。git 安装且 pnpm ≥ 10 时，
-> 需在 profile 的 `pnpm-workspace.yaml` 放行构建脚本
-> （`allowBuilds: { "__PACKAGE_NAME__": true }`）。
+> git 安装且 pnpm ≥ 10 时，需在 profile 的 `pnpm-workspace.yaml` 放行构建脚本
+> （`allowBuilds: { "__PACKAGE_NAME__": true }`，pnpm 10 的键名是
+> `onlyBuiltDependencies`；lib/ 已随仓提交，放行前也能装上，放行是为了 prepare
+> 能重建到最新源码）。desktop profile 不接受 CLI 的 pnpm 转发：改用 app 内
+> Plugin Manager 安装。
 
 ## 开发
 

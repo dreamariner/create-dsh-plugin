@@ -11,5 +11,9 @@ npm-debug.log*
 .vite/
 *.tsbuildinfo
 
+# 发布时由 prepublishOnly 从仓根同步进包目录（真源在仓根，防双真源漂移）
+packages/*/README.md
+packages/*/LICENSE
+
 # 系统文件
 .DS_Store

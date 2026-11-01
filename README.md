@@ -54,7 +54,9 @@ workspace 布局不是 full 的权宜：typert 生成器结构性要求被分析
 ## 生成内容（每项都有依据）
 
 - **pnpm workspace**：`packageManager` 固定 pnpm@11.7.0，根壳 `prepare` 递归构建全部插件包
-  （git 安装即装即用）
+  （lib/ 随仓提交 + git 安装走 pnpm `#path:` 直装子目录，见生成项目 README 的安装节）
+- **发布自包含**：prepublishOnly 把仓根 README / LICENSE 同步进包目录（npm 只自动
+  收录包目录内的这两件），产物 gitignore 保持仓根单真源
 - **typert codegen 全链路（full）**：`packages/protocol` submodule（协议声明源）+
   `tsconfig.host.json` 聚合（registration + paths 重定向）+ 插件级 `tsconfig.typert.json`
   face program + `typertPlugin`（生成 `lib/typert.host.*` 与 `lib/typert.remote-client.*`）+

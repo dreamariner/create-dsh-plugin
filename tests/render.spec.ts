@@ -41,7 +41,7 @@ function rootFilesOf(type: PluginType): string[] {
 
 /** 插件包文件清单（packages/<id>/ 下，不含 package.json：manifest 程序化写，不进 plan）。 */
 function expectedPluginFiles(type: PluginType): string[] {
-  const common = ['tsconfig.json', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'tests/setup.ts']
+  const common = ['tsconfig.json', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'tests/setup.ts', 'scripts/sync-pack-docs.mjs']
   const tsdown = ['tsdown.config.ts']
   const host = ['src/index.ts', 'src/config.ts', 'scripts/dev-hmr.mjs', 'scripts/lib/manifest-deps.mjs']
   const client = ['src/client/index.tsx', 'tests/client-boundary.spec.ts']
@@ -109,8 +109,11 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
         expect(plugin.name).toBe('@acme/dsh-demo')
         expect(plugin.private).toBeUndefined()
         expect(plugin.scripts.build).toBe('tsdown')
+        expect(plugin.scripts.prepublishOnly).toBe('node scripts/sync-pack-docs.mjs') // 打包前从仓根同步文档
         expect(plugin.scripts.test).toBeUndefined()
         expect(plugin.scripts.typecheck).toBeUndefined()
+        expect(plugin.files).toContain('README.md') // npm 只自动收录包目录内的两件
+        expect(plugin.files).toContain('LICENSE')
         expect(plugin.dsh.bundle.patch).toBe('./cordis.patch.yml')
         // 展示元数据的导出面（官方 checklist：Plugin Manager 在不激活插件时经 exports 读取）
         expect(plugin.exports['./locale/*.json']).toBe('./locale/*.json')
