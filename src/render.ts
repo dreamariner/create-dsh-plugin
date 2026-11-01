@@ -103,6 +103,7 @@ export function buildPluginPlan(type: PluginType, pluginId: string): RenderFile[
         { from: 'full/src/remote.ts.tpl', to: `${p}/src/remote.ts` },
         { from: 'full/src/index.ts.tpl', to: `${p}/src/index.ts` },
         { from: 'full/tests/protocol-vendor.spec.ts.tpl', to: `${p}/tests/protocol-vendor.spec.ts` },
+        { from: 'full/tests/typert-face-install.spec.ts.tpl', to: `${p}/tests/typert-face-install.spec.ts` },
       ]
     : []
 

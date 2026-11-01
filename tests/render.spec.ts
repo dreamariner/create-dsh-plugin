@@ -52,7 +52,7 @@ function expectedPluginFiles(type: PluginType): string[] {
   const tsdown = ['tsdown.config.ts']
   const host = ['src/index.ts', 'src/config.ts']
   const client = ['src/client/index.tsx', 'tests/client-boundary.spec.ts']
-  const typert = ['tsconfig.typert.json', 'src/remote.ts', 'tests/protocol-vendor.spec.ts']
+  const typert = ['tsconfig.typert.json', 'src/remote.ts', 'tests/protocol-vendor.spec.ts', 'tests/typert-face-install.spec.ts']
   if (type === 'host') return [...common, ...tsdown, ...host, 'tests/bundle-shape.spec.ts']
   if (type === 'client') return [...common, ...tsdown, 'src/index.ts', ...client, 'tests/bundle-shape.spec.ts']
   return [...common, ...tsdown, ...host, ...client, ...typert, 'tests/bundle-shape.spec.ts']

@@ -34,6 +34,11 @@ pnpm add "github:<owner>/<repo>#path:packages/__PLUGIN_ID__" --dir <profile目�
 # ② 登记：把 "__PACKAGE_NAME__" 加进 profile package.json 的 dsh.profile.bundles 数组
 ```
 
+> ⚠ **三选一装的都是 `packages/<id>/` 下的插件包**：link 成仓根（`link:<本仓路径>` 不带
+> 子路径）装的是根壳——它没有 `dsh.bundle`，loader 会**静默跳过**（不报错、不进日志、
+> 插件不出现），且 `dsh.profile.bundles` 登记的包名也对不上。装完用
+> `ls <profile>/node_modules/<scope>/<id>` 确认指到的是插件包子目录。
+
 <!--#if full-->
 > 从 git clone 本仓后先补协议声明源 submodule：`git submodule update --init packages/protocol`
 > （根壳 preinstall 守卫会在缺失时给出同样指引）。
