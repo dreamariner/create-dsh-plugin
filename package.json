@@ -1,0 +1,49 @@
+{
+  "name": "@dreamariner/create-dsh-plugin",
+  "description": "DSH 插件脚手架：一键创建可发布的 DeepSeek Harness 插件项目（host / client / 双端，pnpm + watch + hmr + npm 发布配置齐备）",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "create-dsh-plugin": "./lib/index.js"
+  },
+  "files": [
+    "lib",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "prepare": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "create",
+    "scaffold",
+    "cordis",
+    "plugin"
+  ],
+  "author": "Jianan",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreamariner/create-dsh-plugin.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "tsdown": "^0.22.2",
+    "typescript": "^5.9",
+    "vitest": "^5.0.3"
+  }
+}
