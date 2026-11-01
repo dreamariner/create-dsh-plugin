@@ -38,9 +38,29 @@ try {
   process.exit(1)
 }
 
+// ⚠ home patch 是 DSH 的 YAML 方言：允许 `!!js <表达式>`（DSH 读取时求值出本机路径）。
+// js-yaml 默认 schema 不认识这个标签（unknown tag 直接抛错），这里注册一个**透传**类型：
+// 读进来包成占位对象、写出去原样还原，标签与表达式逐字节保留。
+// ⚠ 刻意不在本脚本求值表达式：求值是 DSH 的职责（它才有 dshHomePath 的定义域），
+// 在这里求值等于执行配置里的任意 JS。
+// （固有限制：js-yaml 的 round-trip 不保留注释——注释会丢，语义与标签不丢。）
+class JSExpression {
+  constructor(source) {
+    this.source = source
+  }
+}
+const jsTag = new yaml.Type('tag:yaml.org,2002:js', {
+  kind: 'scalar',
+  resolve: () => true,
+  construct: (data) => new JSExpression(data),
+  predicate: (obj) => obj instanceof JSExpression,
+  represent: (obj) => obj.source,
+})
+const PATCH_SCHEMA = yaml.DEFAULT_SCHEMA.extend({ explicit: [jsTag] })
+
 let rows = []
 if (existsSync(homePatch)) {
-  const loaded = yaml.load(readFileSync(homePatch, 'utf8'))
+  const loaded = yaml.load(readFileSync(homePatch, 'utf8'), { schema: PATCH_SCHEMA })
   rows = Array.isArray(loaded) ? loaded : []
 }
 let hmr = rows.find((r) => r && r.id === 'hmr')
@@ -49,6 +69,11 @@ if (!hmr) {
   rows.push(hmr)
 }
 hmr.config ??= {}
+if (hmr.config.root !== undefined && !Array.isArray(hmr.config.root)) {
+  // root 若被写成 !!js 表达式（非数组），覆盖它会静默抹掉表达式——宁可失败
+  console.error('[dev-hmr] hmr 行的 config.root 不是数组（可能是 !!js 表达式），为避免覆盖请手工处理')
+  process.exit(1)
+}
 if (!Array.isArray(hmr.config.root)) hmr.config.root = []
 
 const registered = hmr.config.root.includes(libDir)
@@ -58,7 +83,7 @@ if (remove) {
   hmr.config.root.push(libDir)
 }
 
-writeFileSync(homePatch, `${yaml.dump(rows, { lineWidth: -1 })}\n`)
+writeFileSync(homePatch, `${yaml.dump(rows, { schema: PATCH_SCHEMA, lineWidth: -1 })}\n`)
 if (remove) {
   console.log(registered
     ? `[dev-hmr] 已从 hmr watch 根注销：${libDir}（重启实例生效）`
