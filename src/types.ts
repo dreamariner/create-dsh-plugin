@@ -16,6 +16,8 @@ export interface ScaffoldOptions {
   type: PluginType
   /** 生成目标目录（绝对路径） */
   targetDir: string
+  /** typert 协议声明源共享仓 git URL（full 形态挂 submodule 用；缺省用内置默认） */
+  protocolUrl?: string
   /** 生成后自动 pnpm install */
   install: boolean
   /** 生成后 git init（目标已在 git 仓内时自动跳过） */

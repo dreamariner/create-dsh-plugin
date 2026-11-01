@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
-const CLIENT_DIR = join(process.cwd(), 'src', 'client')
+// full 布局：本 spec 在根 vitest 下跑（cwd = 仓根），client 源码在 packages/<id>/src/client；
+// 单包布局时 __PLUGIN_REL__ 为空串（join 忽略空段）。
+const CLIENT_DIR = join(process.cwd(), '__PLUGIN_REL__', 'src', 'client')
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = []

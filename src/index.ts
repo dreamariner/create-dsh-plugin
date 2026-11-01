@@ -15,7 +15,7 @@ import { cancel, intro, note, outro, spinner } from '@clack/prompts'
 import { runHelp } from './help.ts'
 import { promptScaffold } from './prompts.ts'
 import { renderProject } from './render.ts'
-import { finalize, printNextSteps } from './finalize.ts'
+import { PROTOCOL_REPO_URL, finalize, printNextSteps } from './finalize.ts'
 import type { ScaffoldOptions } from './types.ts'
 
 async function main(): Promise<void> {
@@ -49,6 +49,7 @@ async function main(): Promise<void> {
       + `${opts.type !== 'host' ? ' / client: lib/client.js' : ''}）`,
       `包名：${opts.packageName}`,
       `插件行 id：${opts.pluginId}`,
+      ...(opts.type === 'full' ? [`协议声明源：${opts.protocolUrl ?? PROTOCOL_REPO_URL}`] : []),
     ].join('\n'),
     '项目概况',
   )

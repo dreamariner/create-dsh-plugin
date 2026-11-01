@@ -11,14 +11,17 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = process.cwd()
-const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
+// full 布局：本 spec 在根 vitest 下跑（cwd = 仓根），插件包在 packages/<id>/；
+// host / client 单包布局时 __PLUGIN_REL__ 为空串（join 忽略空段，即 ROOT 自身）。
+const PKG = join(ROOT, '__PLUGIN_REL__')
+const pkg = JSON.parse(readFileSync(join(PKG, 'package.json'), 'utf8'))
 const NAME = '__PACKAGE_NAME__'
 const ROW_ID = '__PLUGIN_ID__'
 
 describe('bundle 形态自守', () => {
   it('manifest 声明 dsh.bundle 指向本包 patch（漏声明 = 装载断链，插件静默消失）', () => {
     expect(pkg.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
-    expect(existsSync(join(ROOT, 'cordis.patch.yml'))).toBe(true)
+    expect(existsSync(join(PKG, 'cordis.patch.yml'))).toBe(true)
   })
 
   it('client 声明在：dsh.client.platform = web（漏了 = 浏览器模块不被发现）', () => {
@@ -32,7 +35,7 @@ describe('bundle 形态自守', () => {
   })
 
   it('自挂载行存在且挂的是本包（- insert: 新增；行 id/name 与包名一致）', () => {
-    const text = readFileSync(join(ROOT, 'cordis.patch.yml'), 'utf8')
+    const text = readFileSync(join(PKG, 'cordis.patch.yml'), 'utf8')
     const insertBlock = text.slice(text.indexOf('- insert:'))
     expect(insertBlock).toMatch(new RegExp(`- id: ${ROW_ID}\\s*$`, 'm'))
     expect(insertBlock).toMatch(new RegExp(`name: ["']?${NAME}`))

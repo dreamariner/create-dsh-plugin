@@ -24,17 +24,69 @@ export interface ManifestInput {
   type: PluginType
 }
 
-export function buildManifest(input: ManifestInput): Record<string, unknown> {
+/**
+ * full 形态是 workspace 布局（根壳 + packages/<id>/ 插件包），因为 typert 生成器
+ * 结构性要求「被分析的包位于 <root>/packages/ 下」（loadRegistrations 的 isWithin
+ * 检查，tsdown 插件路径 includeVendor 恒 false）——单包布局里插件包不在 packages/
+ * 下，生成器静默发现不了它。protocol 与插件包都必须住 packages/。
+ * host / client 形态无生成器参与，保持单包布局（更简单）。
+ */
+export function buildManifests(input: ManifestInput): { root?: Record<string, unknown>; plugin: Record<string, unknown> } {
+  if (input.type !== 'full') {
+    return { plugin: buildPackageManifest(input) }
+  }
+  return {
+    root: buildRootManifest(input),
+    plugin: buildPackageManifest(input),
+  }
+}
+
+/** full 形态的 workspace 根壳：private 壳，scripts 转发到插件包，测试与类型检查在根。 */
+function buildRootManifest(input: ManifestInput): Record<string, unknown> {
+  const { packageName, type } = input
+  return {
+    name: `${packageName}-workspace`,
+    private: true,
+    version: '0.1.0',
+    type: 'module',
+    packageManager: 'pnpm@11.7.0',
+    scripts: {
+      build: `pnpm --filter ${packageName} build`,
+      dev: `pnpm --filter ${packageName} dev`,
+      ...(type === 'full' ? { 'dev:hmr': `pnpm --filter ${packageName} dev:hmr` } : {}),
+      // git 安装（dsh plugin add git+url 拉 repo 根）时由 prepare 驱动子包构建
+      prepare: `pnpm --filter ${packageName} build`,
+      test: 'vitest run',
+      'test:watch': 'vitest',
+      typecheck: 'tsc --noEmit -p tsconfig.json',
+    },
+    devDependencies: {
+      '@types/node': '^24',
+      typescript: '^5.9',
+      vitest: '^5.0.3',
+    },
+  }
+}
+
+/** 插件包 manifest（host / client 单包布局 = 根；full 布局 = packages/<id>/）。 */
+export function buildPackageManifest(input: ManifestInput): Record<string, unknown> {
   const { type, packageName, pluginId, description } = input
 
   const hasClient = type === 'client' || type === 'full'
   const hasHost = type === 'host' || type === 'full'
+  const hasTypert = type === 'full'
 
-  const exports: Record<string, string> = {
+  const exports: Record<string, unknown> = {
     '.': './lib/index.js',
     ...(hasClient ? { './client': './lib/client.js' } : {}),
     './src/*': './src/*',
     './package.json': './package.json',
+  }
+  if (hasTypert) {
+    // typert 生成器的独立 emit 产物（不进 bundle）：host 面给宿主装配 wire codec，
+    // remote-client 面给浏览器半边做类型化 RPC（TypertRemoteNamespaceMap 模块增强）。
+    exports['./typert'] = { types: './lib/typert.host.d.ts', default: './lib/typert.host.js' }
+    exports['./remote'] = { types: './lib/typert.remote-client.d.ts', default: './lib/typert.remote-client.js' }
   }
 
   const dsh: Record<string, unknown> = { bundle: { patch: './cordis.patch.yml' } }
@@ -43,6 +95,15 @@ export function buildManifest(input: ManifestInput): Record<string, unknown> {
     // external = 非 baseline 运行时 import 的模块表请求清单（demo 只用 react 系 baseline，故空）。
     dsh.client = { platform: 'web', immediately: true, inject: [], external: [] }
   }
+
+  const dependencies: Record<string, string> | undefined = hasTypert ? { zod: '^4.4.3' } : undefined
+
+  const peerDependencies: Record<string, string> | undefined = hasHost
+    ? {
+        '@deepseek-ai/schemastery': SCHEMASTERY.peer,
+        ...(hasTypert ? { '@deepseek-ai/dsh-typert-protocol': `>=${DSH_VERSION} <0.3.0-0` } : {}),
+      }
+    : undefined
 
   const devDependencies: Record<string, string> = {
     '@types/node': '^24',
@@ -57,11 +118,38 @@ export function buildManifest(input: ManifestInput): Record<string, unknown> {
     // Config schema 用 schemastery：与宿主共享实例 → peer + dev 双声明（不变式 I1）
     devDependencies['@deepseek-ai/schemastery'] = SCHEMASTERY.dev
   }
+  if (hasTypert) {
+    // 生成器（typertPlugin 的来源）与协议包类型源：dev 精确钉 checkout 同版。
+    // ⚠ 协议包 devDep 必须是裸精确版本（不带 ^ ~）：放宽成范围会让 packages/protocol
+    // 的 -vendor.0 版本变成合法候选，运行期可能被链到没有产物的 vendor 副本。
+    devDependencies['@deepseek-ai/dsh-typert-generator'] = DSH_VERSION
+    devDependencies['@deepseek-ai/dsh-typert-protocol'] = DSH_VERSION
+  }
   if (hasClient) {
     // react 从宿主浏览器模块表供给（构建外置）；本体与类型只服务本地 typecheck
     devDependencies['react'] = '^18.2.0'
     devDependencies['@types/react'] = '^18.2.0'
   }
+
+  const scripts: Record<string, string> = {
+    ...(hasTypert ? { preinstall: 'node scripts/ensure-protocol.mjs' } : {}),
+    build: 'tsdown',
+    dev: 'tsdown --watch',
+    ...(hasHost ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
+    prepare: 'tsdown',
+  }
+  if (!hasTypert) {
+    // 单包布局：测试与类型检查在本包跑（full 布局由 workspace 根壳承载）
+    scripts.test = 'vitest run'
+    scripts['test:watch'] = 'vitest'
+    scripts.typecheck = 'tsc --noEmit'
+  }
+
+  // typert 生成器硬性校验：files 必须显式包含它要 emit 的 4 个产物文件
+  // （缺一项构建期直接报「package files must include lib/typert.host.js」）。
+  const files: string[] = hasTypert
+    ? ['lib', 'lib/typert.host.js', 'lib/typert.host.d.ts', 'lib/typert.remote-client.js', 'lib/typert.remote-client.d.ts', 'src', 'cordis.patch.yml', 'locale', 'icon.svg']
+    : ['lib', 'src', 'cordis.patch.yml', 'locale', 'icon.svg']
 
   return {
     name: packageName,
@@ -70,23 +158,16 @@ export function buildManifest(input: ManifestInput): Record<string, unknown> {
     type: 'module',
     main: './lib/index.js',
     exports,
-    files: ['lib', 'src', 'cordis.patch.yml', 'locale', 'icon.svg'],
-    scripts: {
-      build: 'tsdown',
-      dev: 'tsdown --watch',
-      ...(hasHost ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
-      prepare: 'tsdown',
-      test: 'vitest run',
-      'test:watch': 'vitest',
-      typecheck: 'tsc --noEmit',
-    },
+    files,
+    scripts,
     keywords: ['dsh', 'deepseek-harness', 'cordis', pluginId],
     license: 'Apache-2.0',
     publishConfig: { access: 'public' },
-    packageManager: 'pnpm@11.7.0',
+    ...(hasTypert ? {} : { packageManager: 'pnpm@11.7.0' as const }),
     engines: { dsh: `>=${DSH_VERSION} <0.3.0-0` },
     dsh,
-    ...(hasHost ? { peerDependencies: { '@deepseek-ai/schemastery': SCHEMASTERY.peer } } : {}),
+    ...(peerDependencies !== undefined ? { peerDependencies } : {}),
+    ...(dependencies !== undefined ? { dependencies } : {}),
     devDependencies,
   }
 }

@@ -15,6 +15,8 @@ export interface CliArgs {
   dir?: string
   title?: string
   description?: string
+  /** typert 协议声明源共享仓的 git URL（full 形态自动挂 submodule 用）。 */
+  protocolUrl?: string
   install: boolean
   git: boolean
   help: boolean
@@ -23,7 +25,7 @@ export interface CliArgs {
 const TYPE_VALUES = new Set<PluginType>(['host', 'client', 'full'])
 
 export function parseArgs(argv: string[]): CliArgs {
-  const out: CliArgs = { install: true, git: true, help: false }
+  const out: CliArgs = { install: true, git: true, help: false, protocolUrl: undefined }
   const positional: string[] = []
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!
@@ -44,6 +46,9 @@ export function parseArgs(argv: string[]): CliArgs {
         break
       case '--description':
         out.description = argv[++i]
+        break
+      case '--protocol-url':
+        out.protocolUrl = argv[++i]
         break
       case '--no-install':
         out.install = false
@@ -87,4 +92,16 @@ export function pascalOf(packageName: string): string {
     .filter((p) => p !== '')
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join('') || 'Plugin'
+}
+
+/** 从包名推导 camelCase 服务键（typert Remote 的 service key / Context 增强属性名）：
+ *  @scope/dsh-foo-bar → fooBar。typert 生成器要求 service key 是合法标识符。 */
+export function camelOf(packageName: string): string {
+  const id = pluginIdOf(packageName).replace(/^dsh-/, '')
+  const camel = id
+    .split(/[-._]/)
+    .filter((p) => p !== '')
+    .map((p, i) => (i === 0 ? p : p.charAt(0).toUpperCase() + p.slice(1)))
+    .join('')
+  return /^[A-Za-z_$][\w$]*$/.test(camel) ? camel : 'plugin'
 }

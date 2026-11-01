@@ -1,3 +1,4 @@
+import { typertPlugin } from '@deepseek-ai/dsh-typert-generator/tsdown'
 import { defineConfig } from 'tsdown'
 import { fileURLToPath } from 'node:url'
 import { hostDeps, readManifest } from './scripts/lib/manifest-deps.mjs'
@@ -6,6 +7,10 @@ import { hostDeps, readManifest } from './scripts/lib/manifest-deps.mjs'
 //   lib/index.js  ← host 半边（src/index.ts，ESM，宿主进程装载）
 //   lib/client.js ← client 半边（src/client/index.tsx，CJS + __ModuleLoader__ 包装，
 //                    宿主渲染进程经 dsh.client 声明自动发现并装载）
+// typertPlugin（host 段）：① 构建期降级标准装饰器（rolldown/oxc 原生不降）
+// ② 从 src/remote.ts 的装饰器方法生成 lib/typert.host.*（wire codec）与
+// lib/typert.remote-client.*（client 侧类型化 RPC 契约）。协议声明源从
+// packages/protocol submodule 读（tsconfig.host.json 的 registration + paths）。
 const manifest = readManifest(fileURLToPath(new URL('.', import.meta.url)))
 
 // ── host 段 ──────────────────────────────────────────────────────────────
@@ -25,6 +30,7 @@ const host = defineConfig({
   fixedExtension: false,
   clean: false, // host 与 client 共用 lib/，且构建失败不能毁掉上一份产物
   deps: hostDeps(manifest),
+  plugins: [typertPlugin({ mode: 'workspace', faces: ['host'] })],
 })
 
 // ── client 段 ────────────────────────────────────────────────────────────

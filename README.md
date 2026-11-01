@@ -20,13 +20,23 @@ pnpm dlx github:dreamariner/create-dsh-plugin @dreamariner/dsh-foo --type host
 |------|------|----------|-----------|---------|
 | `host` | `lib/index.js`（ESM） | tool / systemPrompt / provider / listener | 无 | 联网搜索 provider |
 | `client` | `lib/client.js`（CJS + `__ModuleLoader__` 包装） | 装载壳（空 `apply`，官方 decoration 形态） | 槽位 / 面板 / 装饰（React） | 输入框装饰、UI 扩展 |
-| `full` | 两份产物一次构建 | 完整宿主能力 | 完整 UI | 记忆面板、排版预览 |
+| `full` | 两份产物一次构建 + typert codegen | 完整宿主能力 + Typert Remote | 完整 UI | 记忆面板、排版预览 |
+
+`full` 是 workspace 布局（根壳 + `packages/<id>/` 插件包 + `packages/protocol/` 声明源
+submodule）：typert 生成器结构性要求被分析的包位于 `<root>/packages/` 下，单包布局
+无法满足。生成时自动挂载协议声明源 submodule（私有仓，需相应访问权限；可用
+`--protocol-url` 换 URL）。
 
 交互只问三个问题（包名 / 形态 / 目录），其余从包名推导，`--help` 看全部参数。
 
 ## 生成内容（每项都有依据）
 
 - **pnpm 工程**：`packageManager` 固定 pnpm@11.7.0，`prepare` 自动构建（git 安装即装即用）
+- **typert codegen 全链路（full）**：`packages/protocol` submodule（协议声明源）+
+  `tsconfig.host.json` 聚合（registration + paths 重定向）+ 插件级 `tsconfig.typert.json`
+  face program + `typertPlugin`（生成 `lib/typert.host.*` 与 `lib/typert.remote-client.*`）+
+  manifest 四件套（peer / 裸精确 pin / 生成器 devDep / files 显式产物清单，生成器硬性校验）+
+  preinstall submodule 守卫 + 消费端护栏 spec；升级流程与 client 侧 `$mount` 接法见生成项目 README
 - **tsdown 构建**：host 段 `deps` 三件套从 manifest 派生（不变式 I1/I2：peer 外置宿主供给、
   dependencies 内联、devDependencies 只许 import type）；client 段 CJS + banner/footer
   包装，`EXTERNALS`（react 系）走宿主渲染进程模块表，`onlyImport` 把模块表 miss 前移成构建期红

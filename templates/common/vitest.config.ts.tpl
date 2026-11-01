@@ -1,4 +1,4 @@
-// __PACKAGE_NAME__ :: 单测配置
+// __PACKAGE_NAME__ :: 单测配置（单包布局）
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({

@@ -14,8 +14,8 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { pascalOf } from './args.ts'
-import { buildManifest } from './manifest.ts'
+import { camelOf, pascalOf } from './args.ts'
+import { buildManifests } from './manifest.ts'
 import type { PluginType, RenderFile, ScaffoldOptions } from './types.ts'
 
 const TEMPLATES = join(dirname(fileURLToPath(import.meta.url)), '..', 'templates')
@@ -28,12 +28,61 @@ export function substitutionsOf(opts: ScaffoldOptions): Record<string, string> {
     __TITLE__: opts.title,
     __DESCRIPTION__: opts.description,
     __PASCAL_NAME__: pascalOf(opts.packageName),
+    __SERVICE_KEY__: camelOf(opts.packageName),
     __PLUGIN_TYPE_LABEL__: opts.type === 'host' ? '纯 Node 半边' : opts.type === 'client' ? '纯浏览器半边' : 'host + client 双端',
+    // full 布局：插件包相对仓根的目录（host/client 单包布局 = ''，join(ROOT, '', x) 仍指向根）
+    __PLUGIN_REL__: opts.type === 'full' ? `packages/${opts.pluginId}` : '',
+    __TEST_INCLUDE__: opts.type === 'full' ? 'packages/*/tests/**/*.spec.ts' : 'tests/**/*.spec.ts',
+    __TEST_SETUP__: opts.type === 'full' ? `packages/${opts.pluginId}/tests/setup.ts` : './tests/setup.ts',
   }
 }
 
-/** 按类型算出渲染计划（文件清单，不含 package.json——它由 manifest.ts 程序化构造）。 */
-export function buildPlan(type: PluginType): RenderFile[] {
+/** 按类型算出渲染计划（package.json 由 manifest 层单独写，不在 plan 里）。
+ *  full 布局需要 pluginId 拼 packages/<id>/ 前缀；host/client 单包布局用不到。 */
+export function buildPlan(type: PluginType, pluginId = ''): RenderFile[] {
+  if (type === 'full') return buildFullPlan(pluginId)
+  return buildSinglePackagePlan(type)
+}
+
+/** full 布局（workspace：根壳 + packages/<id>/ 插件包 + packages/protocol submodule）。 */
+function buildFullPlan(pluginId: string): RenderFile[] {
+  const p = `packages/${pluginId}`
+  const common: RenderFile[] = [
+    { from: 'common/gitignore.tpl', to: '.gitignore' },
+    { from: 'common/README.md.tpl', to: 'README.md' },
+    { from: 'common/LICENSE', to: 'LICENSE' },
+  ]
+  const root: RenderFile[] = [
+    { from: 'full/pnpm-workspace.yaml.tpl', to: 'pnpm-workspace.yaml' },
+    { from: 'full/tsconfig.root.json.tpl', to: 'tsconfig.json' },
+    { from: 'full/tsconfig.host.json.tpl', to: 'tsconfig.host.json' },
+    { from: 'full/vitest.config.ts.tpl', to: 'vitest.config.ts' },
+  ]
+  const plugin: RenderFile[] = [
+    { from: 'tsconfig/plugin.json.tpl', to: `${p}/tsconfig.json` },
+    { from: 'full/tsconfig.typert.json.tpl', to: `${p}/tsconfig.typert.json` },
+    { from: 'tsdown/full.ts.tpl', to: `${p}/tsdown.config.ts` },
+    { from: 'common/cordis.patch.yml.tpl', to: `${p}/cordis.patch.yml` },
+    { from: 'common/locale/en.json.tpl', to: `${p}/locale/en.json` },
+    { from: 'common/locale/zh.json.tpl', to: `${p}/locale/zh.json` },
+    { from: 'common/icon.svg.tpl', to: `${p}/icon.svg` },
+    { from: 'common/tests/setup.ts.tpl', to: `${p}/tests/setup.ts` },
+    { from: 'full/src/remote.ts.tpl', to: `${p}/src/remote.ts` },
+    { from: 'full/src/index.ts.tpl', to: `${p}/src/index.ts` },
+    { from: 'host/src/config.ts.tpl', to: `${p}/src/config.ts` },
+    { from: 'client/src/client/index.tsx.tpl', to: `${p}/src/client/index.tsx` },
+    { from: 'host/scripts/dev-hmr.mjs.tpl', to: `${p}/scripts/dev-hmr.mjs` },
+    { from: 'full/scripts/ensure-protocol.mjs.tpl', to: `${p}/scripts/ensure-protocol.mjs` },
+    { from: 'host/scripts/lib/manifest-deps.mjs', to: `${p}/scripts/lib/manifest-deps.mjs` },
+    { from: 'client/tests/bundle-shape.spec.ts.tpl', to: `${p}/tests/bundle-shape.spec.ts` },
+    { from: 'client/tests/client-boundary.spec.ts.tpl', to: `${p}/tests/client-boundary.spec.ts` },
+    { from: 'full/tests/protocol-vendor.spec.ts.tpl', to: `${p}/tests/protocol-vendor.spec.ts` },
+  ]
+  return [...common, ...root, ...plugin]
+}
+
+/** 单包布局（host / client：根就是插件包）。 */
+function buildSinglePackagePlan(type: 'host' | 'client'): RenderFile[] {
   const common: RenderFile[] = [
     { from: 'common/gitignore.tpl', to: '.gitignore' },
     { from: 'common/README.md.tpl', to: 'README.md' },
@@ -45,13 +94,12 @@ export function buildPlan(type: PluginType): RenderFile[] {
     { from: 'common/icon.svg.tpl', to: 'icon.svg' },
     { from: 'common/LICENSE', to: 'LICENSE' },
   ]
-  // host 半边（不含 bundle-shape 守卫：它按类型有两个变体）
   const hostHalf: RenderFile[] = [
-    { from: 'host/src/index.ts.tpl', to: 'src/index.ts' },
     { from: 'host/src/config.ts.tpl', to: 'src/config.ts' },
     { from: 'host/scripts/dev-hmr.mjs.tpl', to: 'scripts/dev-hmr.mjs' },
     { from: 'host/scripts/lib/manifest-deps.mjs', to: 'scripts/lib/manifest-deps.mjs' },
   ]
+  const hostIndex: RenderFile = { from: 'host/src/index.ts.tpl', to: 'src/index.ts' }
   const clientShim: RenderFile[] = [
     { from: 'client-shim/src/index.ts.tpl', to: 'src/index.ts' },
   ]
@@ -64,39 +112,50 @@ export function buildPlan(type: PluginType): RenderFile[] {
     : { from: 'tsconfig/client.json.tpl', to: 'tsconfig.json' }
   const tsdown: RenderFile = type === 'host'
     ? { from: 'tsdown/host.ts.tpl', to: 'tsdown.config.ts' }
-    : type === 'client'
-      ? { from: 'tsdown/client.ts.tpl', to: 'tsdown.config.ts' }
-      : { from: 'tsdown/full.ts.tpl', to: 'tsdown.config.ts' }
-  // bundle 形态守卫：host 类型用纯 host 变体；client / full 多一条 dsh.client 断言
+    : { from: 'tsdown/client.ts.tpl', to: 'tsdown.config.ts' }
   const bundleShape: RenderFile = type === 'host'
     ? { from: 'host/tests/bundle-shape.spec.ts.tpl', to: 'tests/bundle-shape.spec.ts' }
     : { from: 'client/tests/bundle-shape.spec.ts.tpl', to: 'tests/bundle-shape.spec.ts' }
 
-  switch (type) {
-    case 'host':
-      return [tsconfig, tsdown, ...common, ...hostHalf, bundleShape]
-    case 'client':
-      return [tsconfig, tsdown, ...common, ...clientShim, ...clientHalf, bundleShape]
-    case 'full':
-      return [tsconfig, tsdown, ...common, ...hostHalf, ...clientHalf, bundleShape]
+  if (type === 'host') {
+    return [tsconfig, tsdown, ...common, ...hostHalf, hostIndex, bundleShape]
   }
+  return [tsconfig, tsdown, ...common, ...clientShim, ...clientHalf, bundleShape]
 }
 
-/** 渲染整个项目：写 package.json + 跑计划。返回写入的文件数（含 package.json）。 */
+/** 条件块：<!--#if host-->…<!--#endif-->（条件可为 host|client|full 的「|」并列）。
+ *  用在 README 这类多类型共用、但按类型有专属小节的模板里。 */
+export function applyConditionalBlocks(text: string, type: PluginType): string {
+  return text.replace(/<!--#if ([a-z|]+)-->\n?([\s\S]*?)<!--#endif-->\n?/g, (_m, cond: string, body: string) => {
+    return ((cond as string).split('|') as PluginType[]).includes(type) ? body : ''
+  })
+}
+
+/** 渲染整个项目：写 package.json（单包一份 / full 两份）+ 跑计划。返回写入的文件数。 */
 export function renderProject(opts: ScaffoldOptions): number {
   const { targetDir } = opts
   mkdirSync(targetDir, { recursive: true })
-  writeFileSync(join(targetDir, 'package.json'), `${JSON.stringify(buildManifest(opts), null, 2)}\n`)
+
+  const manifests = buildManifests(opts)
+  writeFileSync(join(targetDir, 'package.json'), `${JSON.stringify(manifests.root ?? manifests.plugin, null, 2)}\n`)
+  let count = 1
+  if (manifests.root !== undefined) {
+    // full 布局：根壳 + packages/<id>/package.json（插件包）
+    const pluginManifestPath = join(targetDir, `packages/${opts.pluginId}`, 'package.json')
+    mkdirSync(dirname(pluginManifestPath), { recursive: true })
+    writeFileSync(pluginManifestPath, `${JSON.stringify(manifests.plugin, null, 2)}\n`)
+    count += 1
+  }
 
   const sub = substitutionsOf(opts)
-  let count = 1
-  for (const file of buildPlan(opts.type)) {
+  for (const file of buildPlan(opts.type, opts.pluginId)) {
     const src = join(TEMPLATES, file.from)
     if (!existsSync(src)) throw new Error(`模板缺失：${file.from}（安装不完整？）`)
     const dest = join(targetDir, file.to)
     mkdirSync(dirname(dest), { recursive: true })
     if (file.from.endsWith('.tpl')) {
-      writeFileSync(dest, readFileSync(src, 'utf8').replace(/__(?:PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|PLUGIN_TYPE_LABEL)__/g, (m) => sub[m] ?? m))
+      const text = applyConditionalBlocks(readFileSync(src, 'utf8'), opts.type)
+      writeFileSync(dest, text.replace(/__(?:PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_TYPE_LABEL|PLUGIN_REL|TEST_INCLUDE|TEST_SETUP)__/g, (m) => sub[m] ?? m))
     } else {
       // 非 .tpl 文件原样拷贝（如 manifest-deps.mjs 这类零占位符的通用模块）
       cpSync(src, dest)

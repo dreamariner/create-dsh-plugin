@@ -13,6 +13,8 @@ export function runHelp(): void {
   --dir <dir>          生成目录（默认：当前目录下以插件 id 命名）
   --title <t>          人读名（默认：插件 id；写入 locale 的 meta.title）
   --description <d>    一句话描述（默认：模板文案，建议生成后修改）
+  --protocol-url <u>   typert 协议声明源共享仓的 git URL（full 形态自动挂 submodule 用；
+                       默认 git@github.com:dreamariner/dsh-typert-protocol.git）
   --no-install         生成后不自动 pnpm install
   --no-git             生成后不 git init（目标已在 git 仓内时自动跳过）
   -h, --help           本说明

@@ -28,7 +28,7 @@ export async function promptScaffold(argv: string[]): Promise<ScaffoldOptions> {
   const title = args.title ?? pluginId
   const description = args.description ?? `${pluginId}：DeepSeek Harness 插件`
 
-  return { packageName, pluginId, type, targetDir, title, description, install: args.install, git: args.git }
+  return { packageName, pluginId, type, targetDir, title, description, protocolUrl: args.protocolUrl, install: args.install, git: args.git }
 }
 
 async function askName(): Promise<string> {
