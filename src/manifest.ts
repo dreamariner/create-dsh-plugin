@@ -23,6 +23,9 @@ export interface ManifestInput {
   pluginId: string
   description: string
   type: PluginType
+  /** 项目名（根壳 manifest 名的来源）；缺省 = pluginId。与包名解耦：
+   *  多插件项目的项目名一般不该是第一个插件的名字。 */
+  projectName?: string
 }
 
 /**
@@ -42,8 +45,11 @@ export function buildManifests(input: ManifestInput): { root: Record<string, unk
 /** workspace 根壳：private 壳，scripts 以 -r 递归转发（插件数无关），测试与类型检查在根。 */
 function buildRootManifest(input: ManifestInput): Record<string, unknown> {
   const { type } = input
+  // 根壳名跟项目名（目录名）不跟包名：项目名缺省 = 插件 id，可 --project-name
+  // 自定义；根壳是 private 的，不发布，无 scope 语义
+  const projectName = input.projectName ?? input.pluginId
   return {
-    name: `${input.packageName}-workspace`,
+    name: `${projectName}-workspace`,
     private: true,
     version: '0.1.0',
     type: 'module',
@@ -67,7 +73,7 @@ function buildRootManifest(input: ManifestInput): Record<string, unknown> {
   }
 }
 
-/** 插件包 manifest（host / client 单包布局 = 根；full 布局 = packages/<id>/）。 */
+/** 插件包 manifest（统一 workspace 布局：packages/<id>/）。 */
 export function buildPackageManifest(input: ManifestInput): Record<string, unknown> {
   const { type, packageName, pluginId, description } = input
 

@@ -15,6 +15,7 @@ import type { Command, PluginType } from './types.ts'
 export interface CliArgs {
   command: Command
   name?: string
+  projectName?: string
   type?: PluginType
   dir?: string
   title?: string
@@ -52,6 +53,9 @@ export function parseArgs(argv: string[]): CliArgs {
         out.type = v as PluginType
         break
       }
+      case '--project-name':
+        out.projectName = rest[++i]
+        break
       case '--dir':
         out.dir = rest[++i]
         break
@@ -86,6 +90,14 @@ export function parseArgs(argv: string[]): CliArgs {
 
 /** npm 包名合法性：可带 scope 的 @scope/name 或无 scope 的 name（小写字母数字 - . _）。 */
 const NAME_RE = /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/
+
+/** 项目名合法性：目录 / 仓名形态（小写字母数字开头，- . _ 组合；不带 scope）。 */
+const PROJECT_NAME_RE = /^[a-z0-9][a-z0-9-._]*$/
+
+export function validateProjectName(name: string): string | undefined {
+  if (!PROJECT_NAME_RE.test(name)) return '项目名不合法：小写字母或数字开头，只含小写字母数字 - . _（目录 / 仓名形态，不带 scope）'
+  return undefined
+}
 
 export function validateName(name: string): string | undefined {
   if (!NAME_RE.test(name)) return '包名不合法：需为小写的 @scope/name 或 name（字母数字 - . _）'

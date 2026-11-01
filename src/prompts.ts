@@ -11,7 +11,7 @@
 import * as p from '@clack/prompts'
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { parseArgs, validateName, type CliArgs } from './args.ts'
+import { parseArgs, validateName, validateProjectName, type CliArgs } from './args.ts'
 import { PLUGIN_TYPES, type PluginType, type ScaffoldOptions } from './types.ts'
 
 export async function promptScaffold(argv: string[]): Promise<ScaffoldOptions> {
@@ -22,6 +22,17 @@ export async function promptScaffold(argv: string[]): Promise<ScaffoldOptions> {
   if (nameError !== undefined) {
     p.cancel(nameError)
     process.exit(1)
+  }
+
+  // 项目名：与包名解耦（目录名 / 根壳 manifest 名的来源）。缺省 = 插件 id；
+  // add 模式不使用（项目名在 create 时已定）。
+  const projectName = args.projectName
+  if (projectName !== undefined) {
+    const projectError = validateProjectName(projectName)
+    if (projectError !== undefined) {
+      p.cancel(projectError)
+      process.exit(1)
+    }
   }
 
   const type = args.type ?? await askType()
@@ -38,14 +49,14 @@ export async function promptScaffold(argv: string[]): Promise<ScaffoldOptions> {
       process.exit(1)
     }
   } else {
-    const defaultDir = resolve(process.cwd(), pluginId)
+    const defaultDir = resolve(process.cwd(), projectName ?? pluginId)
     targetDir = args.dir !== undefined ? resolve(process.cwd(), args.dir) : await askDir(defaultDir)
   }
 
   const title = args.title ?? pluginId
   const description = args.description ?? `${pluginId}：DeepSeek Harness 插件`
 
-  return { command: args.command, packageName, pluginId, type, targetDir, title, description, protocolUrl: args.protocolUrl, install: args.install, git: args.git }
+  return { command: args.command, projectName, packageName, pluginId, type, targetDir, title, description, protocolUrl: args.protocolUrl, install: args.install, git: args.git }
 }
 
 /** add 模式的目标校验：返回 undefined = 可以追加，返回文案 = 阻止原因。 */

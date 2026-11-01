@@ -14,6 +14,9 @@ export function runHelp(): void {
 
 参数：
   name                 插件 npm 包名（可带 scope，如 @dreamariner/dsh-foo）
+  --project-name <n>   项目名（create：生成目录名与根壳 manifest 名的来源；缺省 =
+                       插件 id）。与包名解耦：多插件项目的项目名一般不该是第一个
+                       插件的名字。add 模式不使用
   --type <t>           插件形态：host（纯 Node 半边）| client（纯浏览器半边）| full（双端）
   --dir <dir>          create：生成目录（默认：当前目录下以插件 id 命名）
                        add：workspace 仓根（默认：当前目录）

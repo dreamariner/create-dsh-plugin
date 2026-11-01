@@ -1,6 +1,10 @@
-# __PACKAGE_NAME__
+# __PROJECT_NAME__
 
-__DESCRIPTION__（由 create-dsh-plugin 生成的 DeepSeek Harness 插件，形态：**__PLUGIN_TYPE_LABEL__**）。
+__PACKAGE_NAME__：__DESCRIPTION__（由 create-dsh-plugin 生成的 DeepSeek Harness 插件，形态：**__PLUGIN_TYPE_LABEL__**）。
+
+> 项目名与包名是两回事：项目名（本目录 / 根壳 manifest 名，缺省 = 首个插件 id，
+> `--project-name` 自定义）标识这个仓；包名标识 `packages/` 下的插件包（发布与
+> 安装都认它）。多插件项目里两者通常不同。
 
 本仓是 workspace 布局：根壳承载测试与类型检查，插件包在 `packages/<id>/`（构建 / 发布 /
 安装都以它为单位）。默认含一个插件，`add` 子命令可继续追加，结构无需迁移。

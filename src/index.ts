@@ -49,6 +49,7 @@ async function main(): Promise<void> {
   note(
     [
       `模式：${opts.command}`,
+      `项目名：${opts.projectName ?? opts.pluginId}${opts.projectName !== undefined ? '（自定义）' : '（缺省 = 插件 id）'}`,
       `形态：${opts.type}（host: ${opts.type !== 'client' ? 'lib/index.js' : '空壳'}`
       + `${opts.type !== 'host' ? ' / client: lib/client.js' : ''}）`,
       `包名：${opts.packageName}`,

@@ -28,6 +28,7 @@ const TEMPLATES = join(dirname(fileURLToPath(import.meta.url)), '..', 'templates
 /** 模板占位符 → 生成值。 */
 export function substitutionsOf(opts: ScaffoldOptions): Record<string, string> {
   return {
+    __PROJECT_NAME__: opts.projectName ?? opts.pluginId,
     __PACKAGE_NAME__: opts.packageName,
     __PLUGIN_ID__: opts.pluginId,
     __TITLE__: opts.title,
@@ -124,7 +125,7 @@ export function applyConditionalBlocks(text: string, type: PluginType): string {
 /** 对单份模板文本做条件块与占位符替换。 */
 export function renderTemplateText(src: string, type: PluginType, sub: Record<string, string>): string {
   const text = applyConditionalBlocks(readFileSync(src, 'utf8'), type)
-  return text.replace(/__(?:PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL)__/g, (m) => sub[m] ?? m)
+  return text.replace(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL)__/g, (m) => sub[m] ?? m)
 }
 
 /** 渲染整个项目（新建仓）：两份 manifest + 根壳 + 默认插件。返回写入的文件数。 */

@@ -1,7 +1,7 @@
 // parseArgs 自测：锁住子命令分发与「值读自同一序列」的正确性。
 // （回归背景：引入 add 子命令时循环体曾错读原 argv，整体错位一位:这里第一时间红。）
 import { describe, expect, it } from 'vitest'
-import { parseArgs } from '../src/args.ts'
+import { parseArgs, validateProjectName } from '../src/args.ts'
 
 describe('parseArgs：子命令分发', () => {
   it('缺省 create（无子命令）', () => {
@@ -33,6 +33,20 @@ describe('parseArgs：子命令分发', () => {
   it('add：--protocol-url 透传', () => {
     const a = parseArgs(['add', 'x', '--type', 'full', '--protocol-url', 'git@example.com:foo/bar.git'])
     expect(a.protocolUrl).toBe('git@example.com:foo/bar.git')
+  })
+
+  it('--project-name 透传（create 与 add 共用解析）', () => {
+    expect(parseArgs(['@s/dsh-foo', '--project-name', 'otter-pack', '--type', 'host']).projectName).toBe('otter-pack')
+    expect(parseArgs(['add', 'x', '--project-name', 'otter-pack']).projectName).toBe('otter-pack')
+  })
+
+  it('validateProjectName：目录 / 仓名形态，拒 scope 与非法字符', () => {
+    expect(validateProjectName('otter-pack')).toBeUndefined()
+    expect(validateProjectName('a.b_c1')).toBeUndefined()
+    expect(validateProjectName('@scope/foo')).toMatch(/不合法/)
+    expect(validateProjectName('-lead')).toMatch(/不合法/)
+    expect(validateProjectName('大写')).toMatch(/不合法/)
+    expect(validateProjectName('')).toMatch(/不合法/)
   })
 
   it('create：--type 非法值报错', () => {

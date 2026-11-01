@@ -76,13 +76,14 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
         for (const rel of [...rootFilesOf(type), ...expectedPluginFiles(type).map((f) => `${PLUGINS[type]}/${f}`), 'package.json', `${PLUGINS[type]}/package.json`]) {
           if (rel.endsWith('LICENSE')) continue
           const text = readFileSync(join(dir, rel), 'utf8')
-          expect(text.match(/__(?:PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL)__/), `${rel} 有占位符残留`).toBeNull()
+          expect(text.match(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL)__/), `${rel} 有占位符残留`).toBeNull()
           expect(text.match(/<!--#if/), `${rel} 有未处理的条件块`).toBeNull()
         }
 
         // 根 manifest：三形态一律是 private workspace 壳，脚本 -r 递归转发（加包不改根）
+        // 根壳名跟项目名（缺省 = 插件 id），不跟包名
         const root = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
-        expect(root.name).toBe('@acme/dsh-demo-workspace')
+        expect(root.name).toBe('dsh-demo-workspace')
         expect(root.private).toBe(true)
         expect(root.packageManager).toBe('pnpm@11.7.0')
         expect(root.scripts.build).toBe('pnpm -r build')
@@ -169,10 +170,27 @@ describe('模板矩阵（三类型 × 统一 workspace 布局）', () => {
 
   it('substitutions 覆盖全部占位符名（__PLUGIN_REL__ 三形态统一指向 packages/<id>）', () => {
     const sub = substitutionsOf(fakeOpts('full'))
-    expect(Object.keys(sub).sort()).toEqual(['__DESCRIPTION__', '__PACKAGE_NAME__', '__PASCAL_NAME__', '__PLUGIN_ID__', '__PLUGIN_REL__', '__PLUGIN_TYPE_LABEL__', '__SERVICE_KEY__', '__TITLE__'].sort())
+    expect(Object.keys(sub).sort()).toEqual(['__DESCRIPTION__', '__PACKAGE_NAME__', '__PASCAL_NAME__', '__PLUGIN_ID__', '__PLUGIN_REL__', '__PLUGIN_TYPE_LABEL__', '__PROJECT_NAME__', '__SERVICE_KEY__', '__TITLE__'].sort())
     expect(sub.__PASCAL_NAME__).toBe('Demo') // dsh-demo → Demo
     expect(sub.__SERVICE_KEY__).toBe('demo') // dsh-demo → demo（camelCase 服务键）
     expect(sub.__PLUGIN_REL__).toBe('packages/dsh-demo')
+    expect(sub.__PROJECT_NAME__).toBe('dsh-demo') // 缺省 = 插件 id
+  })
+
+  it('自定义项目名：根壳名与 README 标题跟项目名，包名不受影响', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-projname-'))
+    try {
+      renderProject(fakeOpts('host', { projectName: 'my-otter-plugins', targetDir: dir }))
+      const root = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+      expect(root.name).toBe('my-otter-plugins-workspace')
+      const plugin = JSON.parse(readFileSync(join(dir, 'packages/dsh-demo/package.json'), 'utf8'))
+      expect(plugin.name).toBe('@acme/dsh-demo') // 包名不动
+      const readme = readFileSync(join(dir, 'README.md'), 'utf8')
+      expect(readme).toContain('# my-otter-plugins')
+      expect(readme).toContain('@acme/dsh-demo')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('条件块按类型保留或剔除', () => {

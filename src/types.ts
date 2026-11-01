@@ -10,6 +10,10 @@ export type Command = 'create' | 'add'
 export interface ScaffoldOptions {
   /** create | add（缺省 create） */
   command: Command
+  /** 项目名（目录名 / 根壳 manifest 名的来源）：create 缺省 = pluginId，可
+   *  --project-name 自定义。与包名解耦：多插件项目的项目名一般不该是第一个
+   *  插件的名字。add 模式不使用（项目名在 create 时已定）。 */
+  projectName?: string
   /** npm 包名（可带 scope，如 @dreamariner/dsh-foo） */
   packageName: string
   /** cordis 插件行 id（包名去 scope） */
