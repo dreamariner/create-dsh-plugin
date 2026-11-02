@@ -11,7 +11,7 @@ __PACKAGE_NAME__：__DESCRIPTION__（由 create-dsh-plugin 生成的 DeepSeek Ha
 
 ## 安装
 
-**想用**（npm 发布后）：
+**想用**（npm）：
 
 - headless 环境：`dsh plugin --profile <name> add __PACKAGE_NAME__`（官方 reconcile 登记名单）
 - desktop 应用：Plugin Manager 里直接装
@@ -31,7 +31,6 @@ profile `package.json` 的 `dsh.profile.bundles`（DSH 只认这份名单，裸 
 不登记 = 插件静默不挂载）并钉 packageManager；realpath 自检 manifest 带
 `dsh.bundle`、包名一致、入口产物存在。装完**重启实例一次**生效。
 
-> npm 首发前先用「想改」的 link 态。
 > 手动等价：`pnpm add <spec> --dir <profile>` 后，把 `__PACKAGE_NAME__` 补进
 > profile `package.json` 的 `dsh.profile.bundles` 数组。⚠ 手动 link 别指仓根：
 > 根壳没有 `dsh.bundle`，loader 会静默跳过（不报错、插件不出现）。

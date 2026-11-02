@@ -270,7 +270,7 @@ export function printNextSteps(opts: ScaffoldOptions, result: FinalizeResult, wa
   lines.push(
     '',
     '安装进 profile：',
-    '  # 想用（npm 发布后）：headless 用官方 CLI 登记；desktop 用应用内 Plugin Manager',
+    '  # 想用（npm）：headless 用官方 CLI 登记；desktop 用应用内 Plugin Manager',
     `  dsh plugin --profile <name> add ${opts.packageName}`,
     '  # 想改（本地源码态 / desktop 无 CLI 时）：本仓脚本一条命令（装前构建 + 装包 + 登记 + 自检）',
     '  pnpm profile:add                 # 缺省 link: 本仓装进 ~/.dsh/profiles/desktop',
