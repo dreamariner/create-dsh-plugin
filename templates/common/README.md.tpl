@@ -21,11 +21,13 @@ dsh plugin --profile <name> add __PACKAGE_NAME__   # npm（发布后）
 应用专属管理，`dsh plugin add` 的官方 reconcile 触达不到，故自带脚本做等价动作）：
 
 ```sh
-node scripts/profile-add.mjs                    # 缺省装进 ~/.dsh/profiles/desktop（link: 本仓 packages/__PLUGIN_ID__）
-node scripts/profile-add.mjs --npm              # 发布后：从 npm 装
-node scripts/profile-add.mjs --github           # 从 GitHub 装（按 origin 解析，带 #path:packages/__PLUGIN_ID__）
-node scripts/profile-add.mjs --remove           # 反向卸载（含名单清理）
+pnpm profile:add                                # 缺省装进 ~/.dsh/profiles/desktop（link: 本仓 packages/__PLUGIN_ID__）
+pnpm profile:add --npm                          # 发布后：从 npm 装
+pnpm profile:add --github                       # 从 GitHub 装（按 origin 解析，带 #path:packages/__PLUGIN_ID__）
+pnpm profile:add --remove                       # 反向卸载（含名单清理）
 ```
+
+> 等价裸命令 `node scripts/profile-add.mjs`（npm 用户则 `npm run profile:add -- <参数>`）；两形态都定义在 package.json 的 `profile:add` 脚本上。
 
 脚本做三件事：① `pnpm add <spec> --dir <profile>`（本仓是 workspace 布局，link 与
 github 形态都指向 `packages/__PLUGIN_ID__` 子目录，不会误装根壳）；② 把包名幂等追加进

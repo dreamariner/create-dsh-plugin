@@ -116,10 +116,10 @@ describe('模板矩阵（布局按形态走）', () => {
           expect(ts).toContain('"src/**/*.ts"')
           // tsdown 引用本仓 scripts（占位符已按布局替换）；client 构建不用 manifest 派生
           if (type === 'host') expect(readFileSync(join(dir, 'tsdown.config.ts'), 'utf8')).toContain("from './scripts/lib/manifest-deps.mjs'")
-          // README 是单包版：方式二走 profile-add 脚本（缺省 link 仓根，无 #path: 子目录形态）
+          // README 是单包版：方式二走 package.json 的 profile:add 自定义指令（缺省 link 仓根，无 #path: 子目录形态）
           const readme = readFileSync(join(dir, 'README.md'), 'utf8')
           expect(readme).toContain('单包布局')
-          expect(readme).toContain('node scripts/profile-add.mjs')
+          expect(readme).toContain('pnpm profile:add')
           expect(readme).not.toContain('#path:packages/')
           if (type === 'host') {
             expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBeTypeOf('string')
