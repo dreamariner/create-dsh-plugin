@@ -269,11 +269,12 @@ export function printNextSteps(opts: ScaffoldOptions, result: FinalizeResult, wa
   }
   lines.push(
     '',
-    '安装进 profile（方式一，推荐：CLI = 装包 + 登记 bundle 名单一步到位）：',
+    '安装进 profile：',
+    '  # 想用（npm 发布后）：headless 用官方 CLI 登记；desktop 用应用内 Plugin Manager',
     `  dsh plugin --profile <name> add ${opts.packageName}`,
-    '  方式二（desktop profile 不接受 CLI 转发 / git 子目录语法 CLI 不认时），手动两步：',
-    `  pnpm add "github:<owner>/<repo>#path:packages/${opts.pluginId}" --dir <profile目录>   # ① 装包`,
-    `  # ② 把 "${opts.packageName}" 补进 profile package.json 的 dsh.profile.bundles`,
+    '  # 想改（本地源码态 / desktop 无 CLI 时）：本仓脚本一条命令（装前构建 + 装包 + 登记 + 自检）',
+    '  pnpm profile:add                 # 缺省 link: 本仓装进 ~/.dsh/profiles/desktop',
+    '  # 手动等价：pnpm add <spec> --dir <profile> 后把包名补进 profile 的 dsh.profile.bundles',
     '  #    （裸 pnpm add 只装包不登记：profile 只认这份名单，不登记插件不挂载）',
     '',
     '发布（单插件包）：',

@@ -60,7 +60,7 @@ workspace 布局不是 full 的权宜：typert 生成器结构性要求被分析
 ## 生成内容（每项都有依据）
 
 - **pnpm workspace**：`packageManager` 固定 pnpm@11.7.0，根壳 `prepare` 递归构建全部插件包
-  （lib/ 随仓提交 + git 安装走 pnpm `#path:` 直装子目录，见生成项目 README 的安装节）
+  （lib/ 构建产物不入库；本地安装走生成项目自带 profile:add 装前构建，见生成项目 README 的安装节）
 - **发布自包含**：prepublishOnly 把仓根 README / LICENSE 同步进包目录（npm 只自动
   收录包目录内的这两件），产物 gitignore 保持仓根单真源
 - **typert codegen 全链路（full）**：`packages/protocol` submodule（协议声明源）+
@@ -88,7 +88,7 @@ workspace 布局不是 full 的权宜：typert 生成器结构性要求被分析
 - DSH 官方 skill `cordis-plugin-development`（templates/decoration + references 的
   ui-plugin / host-plugin / practices：client 模块形态、dsh.client 三字段、槽位选择、
   「不 require Harness Client 包」等硬规则）
-- `dreamariner/dsh-web-search-minimax`：已验证 npm 可发布、git 可安装的完整 host 先例
+- `dreamariner/dsh-web-search-minimax`：已验证 npm 可发布的完整 host 先例
 - 双端插件的构建与护栏形态：同代 DSH 外部插件仓的实战沉淀
 - DSH 版本锚：`0.2.1-rc.3`（`src/manifest.ts` 的 `DSH_VERSION`）
 

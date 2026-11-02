@@ -121,6 +121,8 @@ describe('模板矩阵（布局按形态走）', () => {
           expect(readme).toContain('单包布局')
           expect(readme).toContain('pnpm profile:add')
           expect(readme).not.toContain('#path:packages/')
+          expect(readme).not.toContain('github:')
+          expect(readme).not.toContain('allowBuilds')
           if (type === 'host') {
             expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBeTypeOf('string')
             expect(manifest.devDependencies['@deepseek-ai/cordis']).toBe('4.0.5')

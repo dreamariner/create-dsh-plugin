@@ -73,7 +73,7 @@ function buildRootManifest(input: ManifestInput): Record<string, unknown> {
       'profile:add': 'node scripts/profile-add.mjs',
       // 项目级 hmr（scripts/dev-hmr.mjs 一份）：注册全部插件包 lib/，一仓一 hmr
       ...(type === 'host' || type === 'full' ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
-      // git 安装整仓时由 prepare 驱动全部插件包构建
+      // prepare：发布打包（pack / publish）时驱动全部插件包构建进 tarball
       prepare: 'pnpm -r build',
       // full：协议声明源 preinstall 硬守卫（住仓根：发布包不走这里，也不会崩）
       ...(type === 'full' ? { preinstall: 'node scripts/ensure-protocol.mjs' } : {}),
@@ -163,7 +163,7 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
   const scripts: Record<string, string> = {
     build: 'tsdown',
     dev: 'tsdown --watch',
-    // pack / publish / git 安装三路都会跑 prepare：构建后从仓根同步 README/LICENSE
+    // pack / publish 两路都会跑 prepare：构建后从仓根同步 README/LICENSE
     // （npm 只自动收录包目录内的这两件）
     prepare: 'tsdown && node ../../scripts/sync-pack-docs.mjs',
   }
