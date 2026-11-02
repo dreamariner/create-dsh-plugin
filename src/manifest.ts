@@ -69,6 +69,8 @@ function buildRootManifest(input: ManifestInput): Record<string, unknown> {
       // -r = 递归全部 workspace 成员：add 新插件后无需改根壳
       build: 'pnpm -r build',
       dev: 'pnpm -r --parallel dev',
+      // 一条命令装进 DSH profile：装包 + 登记 bundles + 自检（desktop profile 无官方 reconcile）
+      'profile:add': 'node scripts/profile-add.mjs',
       // 项目级 hmr（scripts/dev-hmr.mjs 一份）：注册全部插件包 lib/，一仓一 hmr
       ...(type === 'host' || type === 'full' ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
       // git 安装整仓时由 prepare 驱动全部插件包构建
@@ -206,6 +208,7 @@ export function buildSingleManifest(input: ManifestInput): Record<string, unknow
       // hmr 原是 workspace 根壳的脚本，single 布局下由本包承载
       ...(input.type === 'host' ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
       prepare: 'tsdown', // 根 = 包：README / LICENSE 由 npm 自动收录，无需同步
+      'profile:add': 'node scripts/profile-add.mjs',
       test: 'vitest run',
       'test:watch': 'vitest',
       typecheck: 'tsc --noEmit -p tsconfig.json',

@@ -44,6 +44,9 @@ export function substitutionsOf(opts: ScaffoldOptions): Record<string, string> {
     __PLUGIN_REL__: single ? '.' : `packages/${opts.pluginId}`,
     // tsdown 配置引用根 scripts/lib/manifest-deps.mjs 的相对路径
     __MANIFEST_DEPS_REL__: single ? './scripts/lib/manifest-deps.mjs' : '../../scripts/lib/manifest-deps.mjs',
+    // profile-add 用：本包相对仓根的 link 后缀（single = 根本身）
+    __SELF_LINK_SUFFIX__: single ? '' : `/packages/${opts.pluginId}`,
+    __PACKAGE_MANAGER__: 'pnpm@11.7.0',
   }
 }
 
@@ -57,6 +60,7 @@ export function buildRootPlan(type: PluginType): RenderFile[] {
       { from: 'common/LICENSE', to: 'LICENSE' },
       { from: 'common/vitest.single.config.ts.tpl', to: 'vitest.config.ts' },
       { from: 'common/scripts/lib/manifest-deps.mjs', to: 'scripts/lib/manifest-deps.mjs' },
+      { from: 'common/scripts/profile-add.mjs.tpl', to: 'scripts/profile-add.mjs' },
     ]
     if (type === 'host') root.push({ from: 'common/scripts/dev-hmr.mjs.tpl', to: 'scripts/dev-hmr.mjs' })
     return root
@@ -71,6 +75,7 @@ export function buildRootPlan(type: PluginType): RenderFile[] {
     // 项目共用脚本（单一拷贝；插件包的 tsdown 配置经 ../../ 引用 manifest-deps）
     { from: 'common/scripts/lib/manifest-deps.mjs', to: 'scripts/lib/manifest-deps.mjs' },
     { from: 'common/scripts/sync-pack-docs.mjs', to: 'scripts/sync-pack-docs.mjs' },
+    { from: 'common/scripts/profile-add.mjs.tpl', to: 'scripts/profile-add.mjs' },
   ]
   root.push({ from: 'common/scripts/dev-hmr.mjs.tpl', to: 'scripts/dev-hmr.mjs' })
   root.push({ from: 'full/tsconfig.host.json.tpl', to: 'tsconfig.host.json' })
@@ -151,7 +156,7 @@ export function applyConditionalBlocks(text: string, type: PluginType): string {
 /** 对单份模板文本做条件块与占位符替换。 */
 export function renderTemplateText(src: string, type: PluginType, sub: Record<string, string>): string {
   const text = applyConditionalBlocks(readFileSync(src, 'utf8'), type)
-  return text.replace(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL)__/g, (m) => sub[m] ?? m)
+  return text.replace(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL|SELF_LINK_SUFFIX|PACKAGE_MANAGER)__/g, (m) => sub[m] ?? m)
 }
 
 /** 渲染整个项目（新建仓）：workspace 写两份 manifest；single 根 package.json 就是

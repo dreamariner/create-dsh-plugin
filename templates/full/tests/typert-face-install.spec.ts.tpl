@@ -3,7 +3,7 @@
 // typert.host.js / typert.remote-client.js 由 typertPlugin 生成，顶部 import zod。
 // zod 若不在 **dependencies**（devDep 或缺失），本仓里跑测试照样绿（devDep 也会
 // link 进包的 node_modules），但 profile / npm 安装态下解析不到：typert-loader
-// 注册 face 失败。desktop 侧 typert-loader 属 required → boot() 整体销毁——症状
+// 注册 face 失败。desktop 侧 typert-loader 属 required → boot() 整体销毁，症状
 // 极其隐蔽：settings/describe 等核心 RPC 全部报「strict definition was
 // withdrawn」、窗口无法打开，而本插件自身的报错一行都看不见（2026-11 实机事故）。
 //

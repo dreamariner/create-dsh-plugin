@@ -17,27 +17,26 @@ __PACKAGE_NAME__：__DESCRIPTION__（由 create-dsh-plugin 生成的 DeepSeek Ha
 dsh plugin --profile <name> add __PACKAGE_NAME__   # npm（发布后）
 ```
 
-**方式二：手动 pnpm 装**（desktop profile 不接受 CLI 的 pnpm 转发；git 子目录语法 CLI 不认时）
-
-⚠ 裸 `pnpm add` 只完成「装包」：DSH 的 profile 只认 `dsh.profile.bundles` 名单
-（loadProfileDirectory 不扫 dependencies），装完**必须把包名补进 profile
-`package.json` 的 `dsh.profile.bundles`**，插件才会挂载。自挂载 bundle 解决的是
-「名单里的包怎么挂载」，不解决「哪些包进名单」。
+**方式二：本仓自带脚本，一条命令 = 装包 + 登记 + 自检**（desktop profile 由 Electron
+应用专属管理，`dsh plugin add` 的官方 reconcile 触达不到，故自带脚本做等价动作）：
 
 ```sh
-# ① 装包（三选一）：
-pnpm add __PACKAGE_NAME__ --dir <profile目录>                        # npm
-pnpm add link:<本仓路径>/packages/__PLUGIN_ID__ --dir <profile目录>   # 本地开发态
-# git：workspace 仓的 dsh CLI github: 形态装的是仓根壳（无插件面），用 path: 直装子目录
-pnpm add "github:<owner>/<repo>#path:packages/__PLUGIN_ID__" --dir <profile目录>
-
-# ② 登记：把 "__PACKAGE_NAME__" 加进 profile package.json 的 dsh.profile.bundles 数组
+node scripts/profile-add.mjs                    # 缺省装进 ~/.dsh/profiles/desktop（link: 本仓 packages/__PLUGIN_ID__）
+node scripts/profile-add.mjs --npm              # 发布后：从 npm 装
+node scripts/profile-add.mjs --github           # 从 GitHub 装（按 origin 解析，带 #path:packages/__PLUGIN_ID__）
+node scripts/profile-add.mjs --remove           # 反向卸载（含名单清理）
 ```
 
-> ⚠ **三选一装的都是 `packages/<id>/` 下的插件包**：link 成仓根（`link:<本仓路径>` 不带
-> 子路径）装的是根壳——它没有 `dsh.bundle`，loader 会**静默跳过**（不报错、不进日志、
-> 插件不出现），且 `dsh.profile.bundles` 登记的包名也对不上。装完用
-> `ls <profile>/node_modules/<scope>/<id>` 确认指到的是插件包子目录。
+脚本做三件事：① `pnpm add <spec> --dir <profile>`（本仓是 workspace 布局，link 与
+github 形态都指向 `packages/__PLUGIN_ID__` 子目录，不会误装根壳）；② 把包名幂等追加进
+profile `package.json` 的 `dsh.profile.bundles`（DSH 只认这份名单，裸 `pnpm add` 不登记
+= 插件静默不挂载），并钉 packageManager；③ realpath 自检目标 manifest 带 `dsh.bundle`
+且包名一致，「静默失效」在这里变成显式报错。装完**重启实例一次**生效。
+
+> 手动等价（不想用脚本时）：`pnpm add <spec> --dir <profile>` 后，把
+> `__PACKAGE_NAME__` 加进 profile `package.json` 的 `dsh.profile.bundles` 数组。
+> ⚠ 手动 link 别指仓根：根壳没有 `dsh.bundle`，loader 会**静默跳过**（不报错、
+> 插件不出现），装完可用 `ls <profile>/node_modules/<scope>/<id>` 核对指向。
 
 <!--#if full-->
 > 从 git clone 本仓后先补协议声明源 submodule：`git submodule update --init packages/protocol`

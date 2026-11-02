@@ -31,12 +31,12 @@ function fakeOpts(type: PluginType, over: Partial<ScaffoldOptions> = {}): Scaffo
 }
 
 // ── single 布局（host / client）：根 = 插件包 ──────────────────────────────
-const SINGLE_ROOT = ['.gitignore', 'README.md', 'LICENSE', 'vitest.config.ts', 'scripts/lib/manifest-deps.mjs']
+const SINGLE_ROOT = ['.gitignore', 'README.md', 'LICENSE', 'vitest.config.ts', 'scripts/lib/manifest-deps.mjs', 'scripts/profile-add.mjs']
 const SINGLE_ROOT_HOST = [...SINGLE_ROOT, 'scripts/dev-hmr.mjs']
 // ── workspace 布局（full）：根壳 + 项目共用脚本 ─────────────────────────────
 const WORKSPACE_ROOT = [
   '.gitignore', 'README.md', 'LICENSE', 'pnpm-workspace.yaml', 'tsconfig.json', 'vitest.config.ts',
-  'scripts/lib/manifest-deps.mjs', 'scripts/sync-pack-docs.mjs',
+  'scripts/lib/manifest-deps.mjs', 'scripts/sync-pack-docs.mjs', 'scripts/profile-add.mjs',
   'scripts/dev-hmr.mjs', 'tsconfig.host.json', 'scripts/ensure-protocol.mjs',
 ]
 
@@ -85,7 +85,7 @@ describe('模板矩阵（布局按形态走）', () => {
         for (const rel of all) {
           if (rel.endsWith('LICENSE')) continue
           const text = readFileSync(join(dir, rel), 'utf8')
-          expect(text.match(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL)__/), `${rel} 有占位符残留`).toBeNull()
+          expect(text.match(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL|SELF_LINK_SUFFIX|PACKAGE_MANAGER)__/), `${rel} 有占位符残留`).toBeNull()
           expect(text.match(/<!--#if/), `${rel} 有未处理的条件块`).toBeNull()
         }
 
@@ -101,6 +101,7 @@ describe('模板矩阵（布局按形态走）', () => {
           expect(manifest.scripts.test).toBe('vitest run')
           expect(manifest.scripts.typecheck).toBe('tsc --noEmit -p tsconfig.json')
           expect(manifest.scripts['dev:hmr']).toBe(type === 'host' ? 'node scripts/dev-hmr.mjs' : undefined)
+          expect(manifest.scripts['profile:add']).toBe('node scripts/profile-add.mjs')
           expect(manifest.exports['.']).toBe('./lib/index.js')
           expect(manifest.files).toContain('README.md')
           expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
@@ -115,10 +116,10 @@ describe('模板矩阵（布局按形态走）', () => {
           expect(ts).toContain('"src/**/*.ts"')
           // tsdown 引用本仓 scripts（占位符已按布局替换）；client 构建不用 manifest 派生
           if (type === 'host') expect(readFileSync(join(dir, 'tsdown.config.ts'), 'utf8')).toContain("from './scripts/lib/manifest-deps.mjs'")
-          // README 是单包版（仓根 link 安装，无 #path: 子目录形态）
+          // README 是单包版：方式二走 profile-add 脚本（缺省 link 仓根，无 #path: 子目录形态）
           const readme = readFileSync(join(dir, 'README.md'), 'utf8')
           expect(readme).toContain('单包布局')
-          expect(readme).toContain('pnpm add link:<本仓路径> --dir <profile目录>')
+          expect(readme).toContain('node scripts/profile-add.mjs')
           expect(readme).not.toContain('#path:packages/')
           if (type === 'host') {
             expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBeTypeOf('string')
@@ -162,6 +163,8 @@ describe('模板矩阵（布局按形态走）', () => {
           expect((plugin.exports['./remote'] as { default: string }).default).toBe('./lib/typert.remote-client.js')
           expect(plugin.dependencies.zod).toBe('^4.4.3')
           expect(readFileSync(join(dir, 'scripts/ensure-protocol.mjs'), 'utf8')).toContain('packages/protocol')
+          expect(readFileSync(join(dir, 'scripts/profile-add.mjs'), 'utf8')).toContain("const NAME = '@acme/dsh-demo'")
+          expect(readFileSync(join(dir, 'scripts/profile-add.mjs'), 'utf8')).toContain("SELF_SUFFIX = '/packages/dsh-demo'")
           expect(readFileSync(join(dir, 'tsconfig.host.json'), 'utf8')).toContain('packages/protocol/src/index.ts')
           expect(readFileSync(join(dir, 'packages/dsh-demo/tsconfig.typert.json'), 'utf8')).toContain('extends')
           expect(readFileSync(join(dir, 'README.md'), 'utf8')).toContain('typert：client 与 host 的类型化 RPC')

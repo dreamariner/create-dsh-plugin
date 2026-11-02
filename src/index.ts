@@ -35,7 +35,7 @@ async function main(): Promise<void> {
   const opts = await promptScaffold(argv)
 
   // 重排检测（create）：目标目录写入前已非空 = 对既有仓做 workspace 重排。
-  // 必须在渲染前采样——渲染后目录必然非空；oldPackageName 是被覆盖前的根 manifest
+  // 必须在渲染前采样，渲染后目录必然非空；oldPackageName 是被覆盖前的根 manifest
   // 名，迁移程序靠它判断 profile 里的旧依赖键是否需要连键改名。
   const preExisting = opts.command === 'create' && existsSync(opts.targetDir)
   const wasNonEmpty = preExisting && readdirSync(opts.targetDir).length > 0

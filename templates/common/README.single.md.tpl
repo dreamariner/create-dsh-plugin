@@ -13,19 +13,23 @@ dsh plugin --profile <name> add __PACKAGE_NAME__        # npm（发布后）
 dsh plugin --profile <name> add github:<owner>/<repo>   # 未发布：git 直装（单包仓支持）
 ```
 
-**方式二：手动 pnpm 装**（desktop profile 不接受 CLI 的 pnpm 转发时）
-
-⚠ 裸 `pnpm add` 只完成「装包」：DSH 的 profile 只认 `dsh.profile.bundles` 名单
-（loadProfileDirectory 不扫 dependencies），装完**必须把包名补进 profile
-`package.json` 的 `dsh.profile.bundles`**，插件才会挂载。
+**方式二：本仓自带脚本，一条命令 = 装包 + 登记 + 自检**（desktop profile 由 Electron
+应用专属管理，`dsh plugin add` 的官方 reconcile 触达不到，故自带脚本做等价动作）：
 
 ```sh
-pnpm add __PACKAGE_NAME__ --dir <profile目录>   # npm（发布后）
-pnpm add link:<本仓路径> --dir <profile目录>     # 本地开发态（单包仓：link 仓根即可）
-pnpm add github:<owner>/<repo> --dir <profile目录>
-
-# ② 登记：把 "__PACKAGE_NAME__" 加进 profile package.json 的 dsh.profile.bundles 数组
+node scripts/profile-add.mjs                    # 缺省装进 ~/.dsh/profiles/desktop（link: 本仓）
+node scripts/profile-add.mjs --npm              # 发布后：从 npm 装
+node scripts/profile-add.mjs --github           # 从 GitHub 装（按 origin 解析 owner/repo）
+node scripts/profile-add.mjs --remove           # 反向卸载（含名单清理）
 ```
+
+脚本做三件事：① `pnpm add <spec> --dir <profile>`；② 把包名幂等追加进 profile
+`package.json` 的 `dsh.profile.bundles`（DSH 只认这份名单，裸 `pnpm add` 不登记 =
+插件静默不挂载），并钉 packageManager；③ realpath 自检目标 manifest 带
+`dsh.bundle` 且包名一致，「静默失效」在这里变成显式报错。装完**重启实例一次**生效。
+
+> 手动等价（不想用脚本时）：`pnpm add <spec> --dir <profile>` 后，把
+> `__PACKAGE_NAME__` 加进 profile `package.json` 的 `dsh.profile.bundles` 数组。
 
 > git 安装且 pnpm ≥ 10 时，需在 profile 的 `pnpm-workspace.yaml` 放行构建脚本
 > （`allowBuilds: { "__PACKAGE_NAME__": true }`，pnpm 10 的键名是
