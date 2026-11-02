@@ -1,13 +1,16 @@
 #!/usr/bin/env node
-// __PROJECT_NAME__ :: dev-hmr.mjs — 项目级 hmr 接线：把全部插件包的 lib/ 注册进本机 DSH 的 hmr watch 根
+// __PROJECT_NAME__ :: dev-hmr.mjs — 项目级 hmr 接线：把本仓的 lib/ 注册进本机 DSH 的 hmr watch 根
 //
 // 用途：开发时「保存 → pnpm dev 重建 → 实例内热重载（免重启、PID 不变）」。
-//   pnpm dev:hmr            注册全部 packages/*/lib（幂等；add 新插件后重跑一次即可）
+//   pnpm dev:hmr            注册本仓的 lib 目录（幂等；add 新插件后重跑一次即可）
 //   pnpm dev:hmr --remove   注销本仓的全部注册
 //
+// 布局自适应：workspace 布局注册 packages/*/lib；单包布局（根即插件包）注册根 lib/，
+// 并同时认旧布局的 packages/*/lib 条目（历史注册重跑一次即清）。
+//
 // 机制：DSH 的 hmr 行住在本机 home patch（$DSH_HOME/cordis.patch.yml，机器本地产物，
-// 不进任何 git）。本脚本只往该行 config.root 数组里增删**本仓** packages/*/lib 的
-// 绝对路径，不触碰 root 里的其它行（各家脚本互不干扰、各自管理自己的行）。
+// 不进任何 git）。本脚本只往该行 config.root 数组里增删**本仓**的 lib 绝对路径，
+// 不触碰 root 里的其它行（各家脚本互不干扰、各自管理自己的行）。
 // 变更 watch 根需重启实例一次生效；之后的改动随 pnpm dev 重建即时热重载。
 //
 // 固有限制（DSH hmr 机制）：只认 change 事件（删除文件不触发 reload）、实例启动
@@ -29,7 +32,7 @@ const packageDirs = existsSync(packagesDir)
   ? readdirSync(packagesDir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => join(packagesDir, e.name))
   : []
 // 本仓的 lib 目录集合（存在的才算：没构建的包注册了也没有产物可热重载）。
-// 单包布局（根即插件包，无 packages/）回退到根 lib/。
+// workspace 布局扫 packages/*/lib；单包布局（根即插件包，无 packages/）用根 lib/。
 const libDirs = existsSync(packagesDir)
   ? packageDirs.filter((d) => existsSync(join(d, 'lib'))).map((d) => join(d, 'lib'))
   : existsSync(join(repo, 'lib'))
@@ -41,13 +44,21 @@ if (!remove && libDirs.length === 0) {
   process.exit(1)
 }
 
-// js-yaml 是各插件包的 devDep（pnpm 严格隔离，根 node_modules 没有它），从包里借
+// js-yaml 借用：单包布局它就是根 devDep（从根 package.json 借）；workspace 布局根壳
+// 没有它（pnpm 严格隔离），回落扫各插件包。
 let yaml
-for (const pkg of packageDirs) {
+const borrowYaml = (pkgJson) => {
   try {
-    yaml = createRequire(join(pkg, 'package.json'))('js-yaml')
-    break
+    return createRequire(pkgJson)('js-yaml')
   } catch {}
+  return null
+}
+yaml = borrowYaml(join(repo, 'package.json'))
+if (!yaml) {
+  for (const pkg of packageDirs) {
+    yaml = borrowYaml(join(pkg, 'package.json'))
+    if (yaml) break
+  }
 }
 if (!yaml) {
   console.error('[dev-hmr] 缺 js-yaml 依赖:先 pnpm install')
@@ -92,8 +103,14 @@ if (hmr.config.root !== undefined && !Array.isArray(hmr.config.root)) {
 }
 if (!Array.isArray(hmr.config.root)) hmr.config.root = []
 
-// 本脚本家族的管理范围：本仓 packages/*/lib 形态的条目（别的仓 / 别家工具的行不动）
-const isOurs = (r) => typeof r === 'string' && r.startsWith(packagesDir + sep) && r.endsWith(sep + 'lib')
+// 本脚本家族的管理范围：本仓的 lib 条目（别的仓 / 别家工具的行不动）。
+// 根 lib 分支服务单包布局；packages/*/lib 分支服务 workspace 布局，同时承担
+// 旧布局注册项的识别与清理（单包仓的 packages/ 已不存在，历史条目重跑即清）。
+const rootLibDir = join(repo, 'lib')
+const isOurs = (r) => typeof r === 'string' && (
+  r === rootLibDir
+  || (r.startsWith(packagesDir + sep) && r.endsWith(sep + 'lib'))
+)
 const oursBefore = hmr.config.root.filter(isOurs)
 
 if (remove) {
@@ -111,7 +128,7 @@ writeFileSync(homePatch, `${yaml.dump(rows, { schema: PATCH_SCHEMA, lineWidth: -
 
 if (remove) {
   console.log(oursBefore.length > 0
-    ? `[dev-hmr] 已注销 ${oursBefore.length} 个注册（本仓 packages/*/lib；重启实例生效）`
+    ? `[dev-hmr] 已注销 ${oursBefore.length} 个注册（本仓 lib/；重启实例生效）`
     : '[dev-hmr] 本来就未注册，无需操作')
 } else {
   const added = oursAfter.filter((r) => !oursBefore.includes(r)).length
