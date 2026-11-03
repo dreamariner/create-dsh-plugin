@@ -1,7 +1,7 @@
 {
   "name": "@dreamariner/create-dsh-plugin",
   "description": "DSH 插件脚手架：一键创建可发布的 DeepSeek Harness 插件项目（host / client / 双端，pnpm + watch + hmr + npm 发布配置齐备）",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "bin": {
     "create-dsh-plugin": "./lib/index.js"
