@@ -47,6 +47,8 @@ export function substitutionsOf(opts: ScaffoldOptions): Record<string, string> {
     // profile-add 用：本包相对仓根的 link 后缀（single = 根本身）
     __SELF_LINK_SUFFIX__: single ? '' : `/packages/${opts.pluginId}`,
     __PACKAGE_MANAGER__: 'pnpm@11.7.0',
+    // 文档 frontmatter 的 last-updated / created 用（本地时区日期）
+    __SCAFFOLD_DATE__: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10),
   }
 }
 
@@ -58,6 +60,9 @@ export function buildRootPlan(type: PluginType): RenderFile[] {
       { from: 'common/gitignore.single.tpl', to: '.gitignore' },
       { from: 'common/README.single.md.tpl', to: 'README.md' },
       { from: 'common/AGENTS.md.tpl', to: 'AGENTS.md' },
+      { from: 'common/docs/issues/AGENTS.md.tpl', to: 'docs/issues/AGENTS.md' },
+      { from: 'common/docs/issues/_template.md.tpl', to: 'docs/issues/_template.md' },
+      { from: 'common/docs/wiki/00-变更日志.md.tpl', to: 'docs/wiki/00-变更日志.md' },
       { from: 'common/LICENSE', to: 'LICENSE' },
       { from: 'common/vitest.single.config.ts.tpl', to: 'vitest.config.ts' },
       { from: 'common/scripts/lib/manifest-deps.mjs', to: 'scripts/lib/manifest-deps.mjs' },
@@ -70,6 +75,9 @@ export function buildRootPlan(type: PluginType): RenderFile[] {
     { from: 'common/gitignore.tpl', to: '.gitignore' },
     { from: 'common/README.md.tpl', to: 'README.md' },
     { from: 'common/AGENTS.md.tpl', to: 'AGENTS.md' },
+    { from: 'common/docs/issues/AGENTS.md.tpl', to: 'docs/issues/AGENTS.md' },
+    { from: 'common/docs/issues/_template.md.tpl', to: 'docs/issues/_template.md' },
+    { from: 'common/docs/wiki/00-变更日志.md.tpl', to: 'docs/wiki/00-变更日志.md' },
     { from: 'common/LICENSE', to: 'LICENSE' },
     { from: 'common/pnpm-workspace.yaml.tpl', to: 'pnpm-workspace.yaml' },
     { from: 'tsconfig/root.json.tpl', to: 'tsconfig.json' },
@@ -158,7 +166,7 @@ export function applyConditionalBlocks(text: string, type: PluginType): string {
 /** 对单份模板文本做条件块与占位符替换。 */
 export function renderTemplateText(src: string, type: PluginType, sub: Record<string, string>): string {
   const text = applyConditionalBlocks(readFileSync(src, 'utf8'), type)
-  return text.replace(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL|SELF_LINK_SUFFIX|PACKAGE_MANAGER)__/g, (m) => sub[m] ?? m)
+  return text.replace(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL|SELF_LINK_SUFFIX|PACKAGE_MANAGER|SCAFFOLD_DATE)__/g, (m) => sub[m] ?? m)
 }
 
 /** 渲染整个项目（新建仓）：workspace 写两份 manifest；single 根 package.json 就是
