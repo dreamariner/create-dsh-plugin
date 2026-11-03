@@ -159,10 +159,44 @@ export function buildPlan(type: PluginType, pluginId = ''): RenderFile[] {
  *  host|client|full 或仓库布局 single|workspace）。用在 README / AGENTS.md 这类
  *  多形态共用、但按形态有专属小节的模板里。 */
 export function applyConditionalBlocks(text: string, type: PluginType, layout: 'single' | 'workspace' = 'single'): string {
-  return text.replace(/<!--#if ([a-z|]+)-->\n?([\s\S]*?)<!--#endif-->\n?/g, (_m, cond: string, body: string) => {
-    const words = (cond as string).split('|')
-    return words.includes(type) || words.includes(layout) ? body : ''
-  })
+  const enabled = (cond: string) => cond.split('|').includes(type) || cond.split('|').includes(layout)
+  // 栈式配对（支持嵌套：目录结构树里 workspace 块内会套 full 行）。递归处理：
+  // 内层块先化简，外层按布尔决定保留体或整段剔除。平铺模板与旧正则输出逐字节一致
+  // （if 标签后与 endif 后各吃一个可选换行）。
+  const process = (s: string): string => {
+    const open = /<!--#if ([a-z|]+)-->/g
+    open.lastIndex = s.search(/<!--#if [a-z|]+-->/)
+    if (open.lastIndex === -1) return s
+    const m = open.exec(s)
+    if (m === null) return s
+    const cond = m[1]
+    const tagRe = /<!--#(if|endif)(?: [a-z|]+)?-->/g
+    tagRe.lastIndex = m.index + m[0].length
+    let depth = 1
+    let bodyStart = m.index + m[0].length
+    let bodyEnd = -1
+    let tailStart = -1
+    let mm: RegExpExecArray | null
+    while ((mm = tagRe.exec(s)) !== null) {
+      if (mm[1] === 'if') {
+        depth++
+      } else {
+        depth--
+        if (depth === 0) {
+          bodyEnd = mm.index
+          tailStart = mm.index + mm[0].length
+          break
+        }
+      }
+    }
+    if (tailStart === -1) throw new Error(`条件块缺 <!--#endif-->：${cond}`)
+    if (s[bodyStart] === '\n') bodyStart++
+    if (s[tailStart] === '\n') tailStart++
+    const body = process(s.slice(bodyStart, bodyEnd))
+    const tail = process(s.slice(tailStart))
+    return s.slice(0, m.index) + (enabled(cond) ? body : '') + tail
+  }
+  return process(text)
 }
 
 /** 对单份模板文本做条件块与占位符替换（layout 决定 single|workspace 条件）。 */
