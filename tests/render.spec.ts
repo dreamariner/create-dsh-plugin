@@ -118,6 +118,10 @@ describe('模板矩阵（布局按形态走）', () => {
           if (type === 'host') expect(readFileSync(join(dir, 'tsdown.config.ts'), 'utf8')).toContain("from './scripts/lib/manifest-deps.mjs'")
           // README 是单包版：方式二走 package.json 的 profile:add 自定义指令（缺省 link 仓根，无 #path: 子目录形态）
           const readme = readFileSync(join(dir, 'README.md'), 'utf8')
+          // gitignore 锚定：裸 lib/ 会任意深度匹配误伤 scripts/lib/ 共享模块
+          const gitignore = readFileSync(join(dir, '.gitignore'), 'utf8')
+          expect(gitignore).toContain('/lib/')
+          expect(gitignore).not.toMatch(/^lib\//m)
           expect(readme).toContain('单包布局')
           expect(readme).toContain('pnpm profile:add')
           expect(readme).not.toContain('#path:packages/')
