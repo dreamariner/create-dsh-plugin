@@ -11,6 +11,12 @@ npx @dreamariner/create-dsh-plugin @dreamariner/dsh-foo --type full
 npx @dreamariner/create-dsh-plugin @dreamariner/dsh-foo --type full --project-name my-otter-pack
 ```
 
+## Agent 技能
+
+[skills/create-dsh-plugin/SKILL.md](skills/create-dsh-plugin/SKILL.md)：给 Agent 用的
+脚手架使用技能（形态选型判据、生成后清单、安装验收、红线与坑）。把本仓挂进你的
+skills 目录（如 zero 层 `.agents/skills/`）即可被发现。
+
 ## 追加插件（add）
 
 workspace 仓（full 生成仓）默认带一个插件；之后在**仓根**执行 `add` 继续追加，
