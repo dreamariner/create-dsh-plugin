@@ -57,6 +57,7 @@ export function buildRootPlan(type: PluginType): RenderFile[] {
     const root: RenderFile[] = [
       { from: 'common/gitignore.single.tpl', to: '.gitignore' },
       { from: 'common/README.single.md.tpl', to: 'README.md' },
+      { from: 'common/AGENTS.md.tpl', to: 'AGENTS.md' },
       { from: 'common/LICENSE', to: 'LICENSE' },
       { from: 'common/vitest.single.config.ts.tpl', to: 'vitest.config.ts' },
       { from: 'common/scripts/lib/manifest-deps.mjs', to: 'scripts/lib/manifest-deps.mjs' },
@@ -68,6 +69,7 @@ export function buildRootPlan(type: PluginType): RenderFile[] {
   const root: RenderFile[] = [
     { from: 'common/gitignore.tpl', to: '.gitignore' },
     { from: 'common/README.md.tpl', to: 'README.md' },
+    { from: 'common/AGENTS.md.tpl', to: 'AGENTS.md' },
     { from: 'common/LICENSE', to: 'LICENSE' },
     { from: 'common/pnpm-workspace.yaml.tpl', to: 'pnpm-workspace.yaml' },
     { from: 'tsconfig/root.json.tpl', to: 'tsconfig.json' },

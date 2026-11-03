@@ -31,11 +31,11 @@ function fakeOpts(type: PluginType, over: Partial<ScaffoldOptions> = {}): Scaffo
 }
 
 // ── single 布局（host / client）：根 = 插件包 ──────────────────────────────
-const SINGLE_ROOT = ['.gitignore', 'README.md', 'LICENSE', 'vitest.config.ts', 'scripts/lib/manifest-deps.mjs', 'scripts/profile-add.mjs']
+const SINGLE_ROOT = ['.gitignore', 'README.md', 'AGENTS.md', 'LICENSE', 'vitest.config.ts', 'scripts/lib/manifest-deps.mjs', 'scripts/profile-add.mjs']
 const SINGLE_ROOT_HOST = [...SINGLE_ROOT, 'scripts/dev-hmr.mjs']
 // ── workspace 布局（full）：根壳 + 项目共用脚本 ─────────────────────────────
 const WORKSPACE_ROOT = [
-  '.gitignore', 'README.md', 'LICENSE', 'pnpm-workspace.yaml', 'tsconfig.json', 'vitest.config.ts',
+  '.gitignore', 'README.md', 'AGENTS.md', 'LICENSE', 'pnpm-workspace.yaml', 'tsconfig.json', 'vitest.config.ts',
   'scripts/lib/manifest-deps.mjs', 'scripts/sync-pack-docs.mjs', 'scripts/profile-add.mjs',
   'scripts/dev-hmr.mjs', 'tsconfig.host.json', 'scripts/ensure-protocol.mjs',
 ]
@@ -122,6 +122,7 @@ describe('模板矩阵（布局按形态走）', () => {
           const gitignore = readFileSync(join(dir, '.gitignore'), 'utf8')
           expect(gitignore).toContain('/lib/')
           expect(gitignore).not.toMatch(/^lib\//m)
+          expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).toContain('红线')
           expect(readme).toContain('单包布局')
           expect(readme).toContain('pnpm profile:add')
           expect(readme).not.toContain('#path:packages/')
