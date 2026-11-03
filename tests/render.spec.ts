@@ -31,11 +31,12 @@ function fakeOpts(type: PluginType, over: Partial<ScaffoldOptions> = {}): Scaffo
 }
 
 // ── single 布局（host / client）：根 = 插件包 ──────────────────────────────
-const SINGLE_ROOT = ['.gitignore', 'README.md', 'AGENTS.md', 'LICENSE', 'vitest.config.ts', 'scripts/lib/manifest-deps.mjs', 'scripts/profile-add.mjs']
+const DOCS = ['docs/issues/AGENTS.md', 'docs/issues/_template.md', 'docs/wiki/00-变更日志.md']
+const SINGLE_ROOT = ['.gitignore', 'README.md', 'AGENTS.md', ...DOCS, 'LICENSE', 'vitest.config.ts', 'scripts/lib/manifest-deps.mjs', 'scripts/profile-add.mjs']
 const SINGLE_ROOT_HOST = [...SINGLE_ROOT, 'scripts/dev-hmr.mjs']
 // ── workspace 布局（full）：根壳 + 项目共用脚本 ─────────────────────────────
 const WORKSPACE_ROOT = [
-  '.gitignore', 'README.md', 'AGENTS.md', 'LICENSE', 'pnpm-workspace.yaml', 'tsconfig.json', 'vitest.config.ts',
+  '.gitignore', 'README.md', 'AGENTS.md', ...DOCS, 'LICENSE', 'pnpm-workspace.yaml', 'tsconfig.json', 'vitest.config.ts',
   'scripts/lib/manifest-deps.mjs', 'scripts/sync-pack-docs.mjs', 'scripts/profile-add.mjs',
   'scripts/dev-hmr.mjs', 'tsconfig.host.json', 'scripts/ensure-protocol.mjs',
 ]
@@ -85,7 +86,7 @@ describe('模板矩阵（布局按形态走）', () => {
         for (const rel of all) {
           if (rel.endsWith('LICENSE')) continue
           const text = readFileSync(join(dir, rel), 'utf8')
-          expect(text.match(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL|SELF_LINK_SUFFIX|PACKAGE_MANAGER)__/), `${rel} 有占位符残留`).toBeNull()
+          expect(text.match(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL|SELF_LINK_SUFFIX|PACKAGE_MANAGER|SCAFFOLD_DATE)__/), `${rel} 有占位符残留`).toBeNull()
           expect(text.match(/<!--#if/), `${rel} 有未处理的条件块`).toBeNull()
         }
 
