@@ -11,12 +11,6 @@ npx @dreamariner/create-dsh-plugin @dreamariner/dsh-foo --type full
 npx @dreamariner/create-dsh-plugin @dreamariner/dsh-foo --type full --project-name my-otter-pack
 ```
 
-未发布的包也能从 git 直跑（pnpm 会先跑 prepare 构建）：
-
-```sh
-pnpm dlx github:dreamariner/create-dsh-plugin @dreamariner/dsh-foo --type host
-```
-
 ## 追加插件（add）
 
 workspace 仓（full 生成仓）默认带一个插件；之后在**仓根**执行 `add` 继续追加，
