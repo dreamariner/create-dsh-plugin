@@ -155,17 +155,19 @@ export function buildPlan(type: PluginType, pluginId = ''): RenderFile[] {
   return [...buildRootPlan(type), ...buildPluginPlan(type, pluginId, layoutOf(type))]
 }
 
-/** 条件块：<!--#if host-->…<!--#endif-->（条件可为 host|client|full 的「|」并列）。
- *  用在 README 这类多类型共用、但按类型有专属小节的模板里。 */
-export function applyConditionalBlocks(text: string, type: PluginType): string {
+/** 条件块：<!--#if host-->…<!--#endif-->（条件可为词的「|」并列；词 = 插件类型
+ *  host|client|full 或仓库布局 single|workspace）。用在 README / AGENTS.md 这类
+ *  多形态共用、但按形态有专属小节的模板里。 */
+export function applyConditionalBlocks(text: string, type: PluginType, layout: 'single' | 'workspace' = 'single'): string {
   return text.replace(/<!--#if ([a-z|]+)-->\n?([\s\S]*?)<!--#endif-->\n?/g, (_m, cond: string, body: string) => {
-    return ((cond as string).split('|') as PluginType[]).includes(type) ? body : ''
+    const words = (cond as string).split('|')
+    return words.includes(type) || words.includes(layout) ? body : ''
   })
 }
 
-/** 对单份模板文本做条件块与占位符替换。 */
-export function renderTemplateText(src: string, type: PluginType, sub: Record<string, string>): string {
-  const text = applyConditionalBlocks(readFileSync(src, 'utf8'), type)
+/** 对单份模板文本做条件块与占位符替换（layout 决定 single|workspace 条件）。 */
+export function renderTemplateText(src: string, type: PluginType, sub: Record<string, string>, layout: 'single' | 'workspace' = 'single'): string {
+  const text = applyConditionalBlocks(readFileSync(src, 'utf8'), type, layout)
   return text.replace(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL|SELF_LINK_SUFFIX|PACKAGE_MANAGER|SCAFFOLD_DATE)__/g, (m) => sub[m] ?? m)
 }
 
@@ -182,14 +184,14 @@ export function renderProject(opts: ScaffoldOptions): number {
     writePluginManifest(opts, manifests.plugin)
     count++
   }
-  count += renderFiles(opts, buildPlan(opts.type, opts.pluginId), targetDir)
+  count += renderFiles(opts, buildPlan(opts.type, opts.pluginId), targetDir, layoutOf(opts.type))
   return count
 }
 
 /** 渲染单个插件包（add 模式）：插件 manifest + 插件文件清单，写进既有 workspace 仓根。 */
 export function renderPluginPackage(opts: ScaffoldOptions): number {
   writePluginManifest(opts, buildPackageManifest(opts))
-  return 1 + renderFiles(opts, buildPluginPlan(opts.type, opts.pluginId, 'workspace'), opts.targetDir)
+  return 1 + renderFiles(opts, buildPluginPlan(opts.type, opts.pluginId, 'workspace'), opts.targetDir, 'workspace')
 }
 
 function writePluginManifest(opts: ScaffoldOptions, manifest: Record<string, unknown>): void {
@@ -199,7 +201,7 @@ function writePluginManifest(opts: ScaffoldOptions, manifest: Record<string, unk
 }
 
 /** 渲染一组计划文件到 rootDir 下（.tpl 做替换，非 .tpl 原样拷贝）。返回写入数。 */
-function renderFiles(opts: ScaffoldOptions, plan: RenderFile[], rootDir: string): number {
+function renderFiles(opts: ScaffoldOptions, plan: RenderFile[], rootDir: string, layout: 'single' | 'workspace'): number {
   const sub = substitutionsOf(opts)
   let count = 0
   for (const file of plan) {
@@ -208,7 +210,7 @@ function renderFiles(opts: ScaffoldOptions, plan: RenderFile[], rootDir: string)
     const dest = join(rootDir, file.to)
     mkdirSync(dirname(dest), { recursive: true })
     if (file.from.endsWith('.tpl')) {
-      writeFileSync(dest, renderTemplateText(src, opts.type, sub))
+      writeFileSync(dest, renderTemplateText(src, opts.type, sub, layout))
     } else {
       // 非 .tpl 文件原样拷贝（如 manifest-deps.mjs 这类零占位符的通用模块）
       cpSync(src, dest)

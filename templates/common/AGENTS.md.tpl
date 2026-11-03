@@ -1,24 +1,62 @@
 # AGENTS.md · __PROJECT_NAME__
 
-> Agent 进仓先读本文：项目定位、形态不变量、门禁与红线。人向的安装与使用说明在 [README.md](README.md)。
+> Agent 进仓先读本文：项目定位、目录结构、形态不变量、门禁与红线。人向的安装与使用说明在 [README.md](README.md)。
 
 ## 项目定位
 
 __PACKAGE_NAME__：__DESCRIPTION__。由 create-dsh-plugin 生成的 DeepSeek Harness（DSH）插件，形态：**__PLUGIN_TYPE_LABEL__**。
 
+## 文档机制
+
+- 需求与迭代跟踪：[docs/issues/AGENTS.md](docs/issues/AGENTS.md)（唯一索引 / 状态真相源，新 issue 走其工作流）
+- 系统现状：[docs/wiki/00-变更日志.md](docs/wiki/00-变更日志.md)（结构变化在此留时间线）
+
+## 目录结构
+
+<!--#if single-->
+```
+├── src/                # 源码
+├── tests/              # 自守护栏测试（bundle 形态 / client 边界）
+├── scripts/            # 项目共用：profile-add / lib/manifest-deps（host 另有 dev-hmr）
+├── locale/             # 展示元数据（Plugin Manager / Settings 在不激活插件时经 exports 读取）
+├── icon.svg            # 占位图标（透明底渐变拼图，替换成你的原创图形）
+├── cordis.patch.yml    # 自挂载 bundle 的配置层
+├── lib/                # 构建产物（不入库）
+└── package.json        # manifest（files / exports / dsh 键）
+```
+<!--#endif-->
+<!--#if workspace-->
+```
+├── packages/__PLUGIN_ID__/     # 插件包（src / tests / locale / icon.svg / cordis.patch.yml）
+<!--#if full-->
+├── packages/protocol/          # typert 协议声明源 submodule（pinned vendor，勿改内容）
+<!--#endif-->
+├── scripts/                    # 项目共用：profile-add / dev-hmr / sync-pack-docs / lib/manifest-deps
+│                               # （full 另有 ensure-protocol）
+├── lib/                        # 各包构建产物（packages/*/lib/，不入库）
+├── tsconfig.host.json          # host 面聚合 tsconfig（registration + paths 重定向）
+└── package.json                # 根壳 manifest（private；pnpm -r 转发构建）
+```
+<!--#endif-->
+
 ## 形态速记
 
 <!--#if single-->
-- 单包布局：根即插件包（`src/` 源码 → `lib/` 构建产物），npm 发布 / `dsh plugin add` / `profile:add` 都以本仓为单位。
+- 单包布局：根即插件包，npm 发布 / `dsh plugin add` / `profile:add` 都以本仓为单位。
 <!--#endif-->
 <!--#if workspace-->
 - workspace 布局：根壳承载测试与类型检查，插件包在 `packages/__PLUGIN_ID__/`；`add` 子命令可继续追加插件，无需迁移结构。
 <!--#endif-->
-<!--#if client|full-->
-- client 半边入口 `src/client/index.tsx`，经 `dsh.client` manifest 声明由宿主渲染进程装载（`./client` 导出面）。
+<!--#if host-->
+- host 半边：`src/index.ts`（manifest 三件套接线 + demo tool）与 `src/config.ts`（schemastery 配置 schema），无浏览器面。
+<!--#endif-->
+<!--#if client-->
+- client 半边：`src/client/index.tsx` 经 `dsh.client` manifest 由宿主渲染进程装载（`./client` 导出面）；`src/index.ts` 是宿主壳（空 apply，仅占 manifest 位，勿在里面写逻辑）。
 <!--#endif-->
 <!--#if full-->
-- typert face：client → host 的类型化 RPC，声明在 `src/remote.ts`，构建期生成 `lib/typert.host.*` 与 `lib/typert.remote-client.*`；协议声明源是 `packages/protocol` submodule（pinned vendor，勿在本仓改它的内容）。
+- 双端：host 半边 `src/index.ts`（tool + Config + deps 三件套）承接数据与计算；client 半边 `src/client/index.tsx` 承接界面。
+- typert face：client → host 的类型化 RPC，方法只声明在 `src/remote.ts`，构建期生成 `lib/typert.host.*`（宿主装配 wire codec）与 `lib/typert.remote-client.*`（client 侧类型化契约）。
+- 协议声明源：`packages/protocol` submodule（pinned vendor，勿在本仓改它的内容）。
 <!--#endif-->
 
 ## 常用命令
@@ -42,5 +80,8 @@ pnpm profile:add    # link: 安装进 ~/.dsh/profiles/desktop（缺依赖自动 
 - **DSH 版本锚 `0.2.1-rc.3`**：peerDependencies 范围与 `engines.dsh` 都锚在此，升级时同步 `package.json` 与注释。
 <!--#if host|full-->
 - **schemastery 双声明**：peer（与宿主共享实例）+ dev（精确钉本仓 typecheck），缺一会装出两份实例。
+<!--#endif-->
+<!--#if full-->
+- **typert 纪律**：face 方法只声明在 `src/remote.ts`；协议包 devDep 必须裸精确版本（放宽会让 vendor 副本成为合法候选）；zod 必须留在 dependencies（生成产物 import 它）。
 <!--#endif-->
 - **行文不用破折号「——」**（zero 知识库行文规范，2026-11-01 起）。
