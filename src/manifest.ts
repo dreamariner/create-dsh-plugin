@@ -100,7 +100,6 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
   const exports: Record<string, unknown> = {
     '.': './lib/index.js',
     ...(hasClient ? { './client': './lib/client.js' } : {}),
-    './src/*': './src/*',
     // 展示元数据的导出面（官方 host-plugin checklist 必查项：Plugin Manager 与
     // Settings 在不激活插件时经 exports 读取 locale 的 meta 与 icon）
     './locale/*.json': './locale/*.json',
@@ -172,8 +171,8 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
   // typert 生成器硬性校验：files 必须显式包含它要 emit 的 4 个产物文件
   // （缺一项构建期直接报「package files must include lib/typert.host.js」）。
   const files: string[] = hasTypert
-    ? ['lib', 'lib/typert.host.js', 'lib/typert.host.d.ts', 'lib/typert.remote-client.js', 'lib/typert.remote-client.d.ts', 'src', 'cordis.patch.yml', 'locale', 'icon.svg', 'README.md', 'LICENSE']
-    : ['lib', 'src', 'cordis.patch.yml', 'locale', 'icon.svg', 'README.md', 'LICENSE']
+    ? ['lib', 'lib/typert.host.js', 'lib/typert.host.d.ts', 'lib/typert.remote-client.js', 'lib/typert.remote-client.d.ts', 'cordis.patch.yml', 'locale', 'icon.svg', 'README.md', 'LICENSE']
+    : ['lib', 'cordis.patch.yml', 'locale', 'icon.svg', 'README.md', 'LICENSE']
 
   return {
     name: packageName,
