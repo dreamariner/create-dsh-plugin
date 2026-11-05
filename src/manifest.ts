@@ -10,7 +10,7 @@
 import type { PluginType } from './types.ts'
 
 /** DSH 版本锚：与官方打包版 rc.3 对齐（升级时改这里 + tsconfig/模板注释里的版本）。 */
-export const DSH_VERSION = '0.2.1-rc.3'
+export const DSH_VERSION = '0.2.2-rc.1'
 
 /** schemastery（配置校验）的宿主共享版本：peer 范围 + dev 精确钉（不变式 I1）。 */
 const SCHEMASTERY = { peer: '>=3.18.5 <4.0.0-0', dev: '3.18.5' } as const

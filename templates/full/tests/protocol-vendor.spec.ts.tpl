@@ -5,7 +5,7 @@
 // （typert 生成器的 workspace registration），运行期一律走 npm 那份。
 // 「只在构建期」靠两件事维持，任何一件被破坏都不报错、只是插件凭空消失：
 //   ① vendor 版本带 -vendor.0 后缀，不等于本包 devDependencies 的精确 pin
-//      （0.2.1-rc.3）→ pnpm 只能从 registry 取，linkWorkspacePackages 不会把
+//      （0.2.2-rc.1）→ pnpm 只能从 registry 取，linkWorkspacePackages 不会把
 //      运行期链接到 vendor 副本；
 //      ⚠️ vendor 版本其实满足 peer 范围（semver prerelease 细节：'rc.3-vendor.0'
 //      比 'rc.3' 「更新」）:所以真正的防线是「devDep 用裸精确版本」，第 4 条断言。

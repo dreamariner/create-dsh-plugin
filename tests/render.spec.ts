@@ -165,9 +165,9 @@ describe('模板矩阵（布局按形态走）', () => {
           expect(plugin.dsh.bundle.patch).toBe('./cordis.patch.yml')
           expect(plugin.exports['./locale/*.json']).toBe('./locale/*.json')
           expect(plugin.exports['./icon']).toBe('./icon.svg')
-          expect(plugin.peerDependencies['@deepseek-ai/dsh-typert-protocol']).toBe('>=0.2.1-rc.3 <0.3.0-0')
-          expect(plugin.devDependencies['@deepseek-ai/dsh-typert-protocol']).toBe('0.2.1-rc.3')
-          expect(plugin.devDependencies['@deepseek-ai/dsh-typert-generator']).toBe('0.2.1-rc.3')
+          expect(plugin.peerDependencies['@deepseek-ai/dsh-typert-protocol']).toBe('>=0.2.2-rc.1 <0.3.0-0')
+          expect(plugin.devDependencies['@deepseek-ai/dsh-typert-protocol']).toBe('0.2.2-rc.1')
+          expect(plugin.devDependencies['@deepseek-ai/dsh-typert-generator']).toBe('0.2.2-rc.1')
           expect((plugin.exports['./typert'] as { default: string }).default).toBe('./lib/typert.host.js')
           expect((plugin.exports['./remote'] as { default: string }).default).toBe('./lib/typert.remote-client.js')
           expect(plugin.dependencies.zod).toBe('^4.4.3')
@@ -193,7 +193,7 @@ describe('模板矩阵（布局按形态走）', () => {
     expect(client.devDependencies['react']).toBe('^18.2.0')
     const full = buildManifests({ packageName: 'c', pluginId: 'c', description: 'c', type: 'full' })
     expect(full.root.name).toBe('c-workspace')
-    expect((full.plugin!.devDependencies as Record<string, string>)['@deepseek-ai/dsh-typert-generator']).toBe('0.2.1-rc.3')
+    expect((full.plugin!.devDependencies as Record<string, string>)['@deepseek-ai/dsh-typert-generator']).toBe('0.2.2-rc.1')
   })
 
   it('substitutions 布局感知（__PLUGIN_REL__ / __MANIFEST_DEPS_REL__）', () => {
