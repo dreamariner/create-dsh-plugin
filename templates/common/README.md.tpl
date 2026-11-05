@@ -40,6 +40,20 @@ profile `package.json` 的 `dsh.profile.bundles`（DSH 只认这份名单，裸 
 > （根壳 preinstall 守卫会在缺失时给出同样指引）。
 
 <!--#endif-->
+## DSH 实例管理
+
+```sh
+pnpm dsh:status     # 实例在跑与否 + 访问地址
+pnpm dsh:start      # 启动实例（启动前构建门：构建失败阻断启动）
+pnpm dsh:restart    # 优雅停止后重启（默认后台）
+pnpm dsh:stop       # 优雅停止
+pnpm dsh:probe      # 连实例验证本插件装载且 active
+```
+
+纪律：实例固定经 `dsh:start` 启动（脚本给打包版带 `--inspect` 并等就绪）；Dock 直启的
+实例没有 inspector，stop / restart 管不了。环境变量：`DSH_HOME` / `DSH_PROFILE` /
+`DSH_LOG` / `DSH_DESKTOP_APP` / `DSH_DESKTOP_FORM`（=dev 需 `DSH_CHECKOUT`）。
+
 ## 开发
 
 ```sh

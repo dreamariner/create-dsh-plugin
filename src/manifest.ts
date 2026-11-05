@@ -71,6 +71,12 @@ function buildRootManifest(input: ManifestInput): Record<string, unknown> {
       dev: 'pnpm -r --parallel dev',
       // 一条命令装进 DSH profile：装包 + 登记 bundles + 自检（desktop profile 无官方 reconcile）
       'profile:add': 'node scripts/profile-add.mjs',
+      // DSH 实例管理（启动 / 重启 / 停止 / 状态 / 装载探针；机制借 luna-dsh issue 020/026/034）
+      'dsh:start': 'node scripts/dsh-ctl.mjs start',
+      'dsh:restart': 'node scripts/dsh-ctl.mjs restart',
+      'dsh:stop': 'node scripts/dsh-ctl.mjs stop',
+      'dsh:status': 'node scripts/dsh-ctl.mjs status',
+      'dsh:probe': 'node scripts/dsh-ctl.mjs probe',
       // 项目级 hmr（scripts/dev-hmr.mjs 一份）：注册全部插件包 lib/，一仓一 hmr
       ...(type === 'host' || type === 'full' ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
       // prepare：发布打包（pack / publish）时驱动全部插件包构建进 tarball
@@ -208,6 +214,12 @@ export function buildSingleManifest(input: ManifestInput): Record<string, unknow
       ...(input.type === 'host' ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
       prepare: 'tsdown', // 根 = 包：README / LICENSE 由 npm 自动收录，无需同步
       'profile:add': 'node scripts/profile-add.mjs',
+      // DSH 实例管理（同 workspace 根壳）
+      'dsh:start': 'node scripts/dsh-ctl.mjs start',
+      'dsh:restart': 'node scripts/dsh-ctl.mjs restart',
+      'dsh:stop': 'node scripts/dsh-ctl.mjs stop',
+      'dsh:status': 'node scripts/dsh-ctl.mjs status',
+      'dsh:probe': 'node scripts/dsh-ctl.mjs probe',
       test: 'vitest run',
       'test:watch': 'vitest',
       typecheck: 'tsc --noEmit -p tsconfig.json',

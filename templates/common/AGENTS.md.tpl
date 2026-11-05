@@ -71,6 +71,13 @@ pnpm dev            # watch 重建
 pnpm dev:hmr        # host 半边热重载接线（client 半边重建即热替换）
 <!--#endif-->
 pnpm profile:add    # link: 安装进 ~/.dsh/profiles/desktop（缺依赖自动 install、装前自动构建、登记名单、自检）
+
+# ── DSH 实例管理 ──
+pnpm dsh:status     # 实例在跑与否 + 访问地址
+pnpm dsh:start [前台|后台]   # 启动实例（打包版带 --inspect；启动前有构建门）
+pnpm dsh:restart    # 优雅停止后重启（默认后台）
+pnpm dsh:stop       # 优雅停止（inspector 自动应答退出；兜底属主圈定）
+pnpm dsh:probe      # 连实例验证本插件装载且 active（pluginInventory/list）
 ```
 
 ## 红线
@@ -84,4 +91,5 @@ pnpm profile:add    # link: 安装进 ~/.dsh/profiles/desktop（缺依赖自动 
 <!--#if full-->
 - **typert 纪律**：face 方法只声明在 `src/remote.ts`；协议包 devDep 必须裸精确版本（放宽会让 vendor 副本成为合法候选）；zod 必须留在 dependencies（生成产物 import 它）。
 <!--#endif-->
+- **实例固定经 `pnpm dsh:start` 启动**：打包版要带 `--inspect` 才有 inspector，Dock 直启的实例 stop / restart 管不了；启动前构建门失败会阻断（lib 不入库，没有旧产物可跑）。
 - **行文不用破折号「——」**（zero 知识库行文规范，2026-11-01 起）。

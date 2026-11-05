@@ -67,6 +67,7 @@ export function buildRootPlan(type: PluginType): RenderFile[] {
       { from: 'common/vitest.single.config.ts.tpl', to: 'vitest.config.ts' },
       { from: 'common/scripts/lib/manifest-deps.mjs', to: 'scripts/lib/manifest-deps.mjs' },
       { from: 'common/scripts/profile-add.mjs.tpl', to: 'scripts/profile-add.mjs' },
+      { from: 'common/scripts/dsh-ctl.mjs.tpl', to: 'scripts/dsh-ctl.mjs' },
     ]
     if (type === 'host') root.push({ from: 'common/scripts/dev-hmr.mjs.tpl', to: 'scripts/dev-hmr.mjs' })
     return root
@@ -86,6 +87,7 @@ export function buildRootPlan(type: PluginType): RenderFile[] {
     { from: 'common/scripts/lib/manifest-deps.mjs', to: 'scripts/lib/manifest-deps.mjs' },
     { from: 'common/scripts/sync-pack-docs.mjs', to: 'scripts/sync-pack-docs.mjs' },
     { from: 'common/scripts/profile-add.mjs.tpl', to: 'scripts/profile-add.mjs' },
+    { from: 'common/scripts/dsh-ctl.mjs.tpl', to: 'scripts/dsh-ctl.mjs' },
   ]
   root.push({ from: 'common/scripts/dev-hmr.mjs.tpl', to: 'scripts/dev-hmr.mjs' })
   root.push({ from: 'full/tsconfig.host.json.tpl', to: 'tsconfig.host.json' })

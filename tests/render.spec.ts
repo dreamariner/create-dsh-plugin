@@ -32,12 +32,12 @@ function fakeOpts(type: PluginType, over: Partial<ScaffoldOptions> = {}): Scaffo
 
 // ── single 布局（host / client）：根 = 插件包 ──────────────────────────────
 const DOCS = ['docs/issues/AGENTS.md', 'docs/issues/_template.md', 'docs/wiki/00-变更日志.md']
-const SINGLE_ROOT = ['.gitignore', 'README.md', 'AGENTS.md', ...DOCS, 'LICENSE', 'vitest.config.ts', 'scripts/lib/manifest-deps.mjs', 'scripts/profile-add.mjs']
+const SINGLE_ROOT = ['.gitignore', 'README.md', 'AGENTS.md', ...DOCS, 'LICENSE', 'vitest.config.ts', 'scripts/lib/manifest-deps.mjs', 'scripts/profile-add.mjs', 'scripts/dsh-ctl.mjs']
 const SINGLE_ROOT_HOST = [...SINGLE_ROOT, 'scripts/dev-hmr.mjs']
 // ── workspace 布局（full）：根壳 + 项目共用脚本 ─────────────────────────────
 const WORKSPACE_ROOT = [
   '.gitignore', 'README.md', 'AGENTS.md', ...DOCS, 'LICENSE', 'pnpm-workspace.yaml', 'tsconfig.json', 'vitest.config.ts',
-  'scripts/lib/manifest-deps.mjs', 'scripts/sync-pack-docs.mjs', 'scripts/profile-add.mjs',
+  'scripts/lib/manifest-deps.mjs', 'scripts/sync-pack-docs.mjs', 'scripts/profile-add.mjs', 'scripts/dsh-ctl.mjs',
   'scripts/dev-hmr.mjs', 'tsconfig.host.json', 'scripts/ensure-protocol.mjs',
 ]
 
@@ -103,6 +103,7 @@ describe('模板矩阵（布局按形态走）', () => {
           expect(manifest.scripts.typecheck).toBe('tsc --noEmit -p tsconfig.json')
           expect(manifest.scripts['dev:hmr']).toBe(type === 'host' ? 'node scripts/dev-hmr.mjs' : undefined)
           expect(manifest.scripts['profile:add']).toBe('node scripts/profile-add.mjs')
+          expect(manifest.scripts['dsh:status']).toBe('node scripts/dsh-ctl.mjs status')
           expect(manifest.exports['.']).toBe('./lib/index.js')
           expect(manifest.files).toContain('README.md')
           expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
