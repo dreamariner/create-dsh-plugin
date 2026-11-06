@@ -109,6 +109,7 @@ export function buildPluginPlan(type: PluginType, pluginId: string, layout: 'wor
     { from: 'common/locale/zh.json.tpl', to: at('locale/zh.json') },
     { from: 'common/icon.svg.tpl', to: at('icon.svg') },
     { from: 'common/tests/setup.ts.tpl', to: at('tests/setup.ts') },
+    { from: 'common/tests/import-guard.spec.ts.tpl', to: at('tests/import-guard.spec.ts') },
     single
       ? { from: 'tsconfig/single.json.tpl', to: 'tsconfig.json' }
       : { from: 'tsconfig/plugin.json.tpl', to: at('tsconfig.json') },

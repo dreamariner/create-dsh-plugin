@@ -16,7 +16,7 @@ __PACKAGE_NAME__：__DESCRIPTION__。由 create-dsh-plugin 生成的 DeepSeek Ha
 <!--#if single-->
 ```
 ├── src/                # 源码
-├── tests/              # 自守护栏测试（bundle 形态 / client 边界）
+├── tests/              # 自守护栏测试（bundle 形态 / client 边界 / 导入纪律）
 ├── scripts/            # 项目共用：profile-add / lib/manifest-deps（host 另有 dev-hmr）
 ├── locale/             # 展示元数据（Plugin Manager / Settings 在不激活插件时经 exports 读取）
 ├── icon.svg            # 占位图标（透明底渐变拼图，替换成你的原创图形）
@@ -85,8 +85,10 @@ pnpm dsh:probe      # 连实例验证本插件装载且 active（pluginInventory
 - **lib 不入库**：构建产物不进 git。gitignore 已按布局锚定（single = `/lib/`，workspace = `packages/*/lib/`）；勿改回裸 `lib/`，那会任意深度匹配误伤 `scripts/lib/` 共享模块，clone 出来的仓 build 直接挂。
 - **发布面不含 src**：`files` 白名单与 `exports` 都不带源码；`./src/*` 是官方 client 包的 monorepo 内约定，独立发行插件无人消费。
 - **DSH 版本锚 `0.2.2-rc.1`**：peerDependencies 范围与 `engines.dsh` 都锚在此，升级时同步 `package.json` 与注释。
+- **依赖决策表**：peer = 外置（宿主供给同一实例，运行期共享）；dependencies = 内联自带；devDependencies = 只许 `import type`。唯一事实源是 `package.json`（`scripts/lib/manifest-deps.mjs` 派生 tsdown 三件套），源码导入纪律由 `tests/import-guard.spec.ts` 机械执行。
 <!--#if host|full-->
 - **schemastery 双声明**：peer（与宿主共享实例）+ dev（精确钉本仓 typecheck），缺一会装出两份实例。
+- **cordis 只许 `import type { Context }`**：dev 钉版仅服务 typecheck。值导入前必须先把 cordis 升进 peerDependencies，否则 alwaysBundle 会把它内联进产物，运行期出现第二份 cordis 实例（作用域与注册表不跨副本共享，插件静默失灵；教训源自 luna-dsh 2026-10-22 事故），导入护栏会拦。
 <!--#endif-->
 <!--#if full-->
 - **typert 纪律**：face 方法只声明在 `src/remote.ts`；协议包 devDep 必须裸精确版本（放宽会让 vendor 副本成为合法候选）；zod 必须留在 dependencies（生成产物 import 它）。

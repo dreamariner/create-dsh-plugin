@@ -44,7 +44,7 @@ const WORKSPACE_ROOT = [
 /** 插件包文件清单（single 落根，workspace 落 packages/<id>/；不含 package.json：
  *  manifest 程序化写，不进 plan）。 */
 function expectedPluginFiles(type: PluginType): string[] {
-  const common = ['tsconfig.json', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'tests/setup.ts']
+  const common = ['tsconfig.json', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'tests/setup.ts', 'tests/import-guard.spec.ts']
   const tsdown = ['tsdown.config.ts']
   const host = ['src/index.ts', 'src/config.ts']
   const client = ['src/client/index.tsx', 'tests/client-boundary.spec.ts']
