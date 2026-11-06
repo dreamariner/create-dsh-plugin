@@ -121,7 +121,22 @@ function inScope(r: Rec): boolean {
   return !r.spec.startsWith('.') && !r.spec.startsWith('/') && !r.spec.startsWith('node:')
 }
 
+/** 包名提取：裸导入说明符常带子路径（pkg/sub、@scope/pkg/sub），按 scope 规则取包名段。 */
+function pkgNameOf(spec: string): string {
+  return spec.startsWith('@') ? spec.split('/').slice(0, 2).join('/') : spec.split('/')[0]
+}
+
+/** 自引用子路径（<自身包名>/…）：经 package.json self-reference 解析，是模板认可
+ *  形态（client 半边产物还会把它内联，见 tsdown 配置「不要把本包子路径放进
+ *  EXTERNALS」的注释）。 */
+const SELF: string = manifest.name ?? ''
+const isSelfRef = (r: Rec): boolean => r.spec === SELF || r.spec.startsWith(`${SELF}/`)
+
 const allowedOf = (r: Rec): string[] => runtimeAllowed(manifest, r.half, CLIENT_EXTERNALS)
+const isAllowed = (r: Rec): boolean => {
+  const pkg = pkgNameOf(r.spec)
+  return allowedOf(r).includes(r.spec) || allowedOf(r).includes(pkg)
+}
 
 describe('源码导入纪律（依赖决策表）', () => {
   it('扫到源码文件（防止目录挪走后护栏空转成绿）', () => {
@@ -130,7 +145,7 @@ describe('源码导入纪律（依赖决策表）', () => {
 
   it('值导入都落在声明过的运行期白名单（host = peer ∪ deps；client 另加模块表供给）', () => {
     const offenders = recs
-      .filter((r) => inScope(r) && !r.typeOnly && !allowedOf(r).includes(r.spec))
+      .filter((r) => inScope(r) && !r.typeOnly && !isSelfRef(r) && !isAllowed(r))
       .map((r) => `${r.file}:${r.line} 值导入了 '${r.spec}'（${r.half} 半边）`
         + `\n    → 升进 peerDependencies（宿主供给同一实例）或 dependencies（内联自带），或改 import type`)
     expect(offenders, `源码出现声明外的值导入：\n${offenders.join('\n')}`).toEqual([])
@@ -138,11 +153,15 @@ describe('源码导入纪律（依赖决策表）', () => {
 
   it('devDependencies 只许 import type（值导入会被 alwaysBundle 内联，cordis 类包即第二实例）', () => {
     const offenders = recs
-      // peer + dev 双声明（I1 形态）不算犯：dev 那份只服务 typecheck，运行期走宿主那份
-      .filter((r) => inScope(r) && !r.typeOnly && DEV.includes(r.spec)
-        && !PEERS.includes(r.spec) && !DEPS.includes(r.spec))
+      // peer + dev 双声明（I1 形态）不算犯：dev 那份只服务 typecheck，运行期走宿主那份。
+      // client 半边由模块表供给的包（react 系 baseline / dsh.client.external）也不算犯：
+      // 构建走 neverBundle 外置、运行期宿主渲染进程供给（对应 tsdown client 的 EXTERNALS）。
+      .filter((r) => inScope(r) && !r.typeOnly && DEV.includes(pkgNameOf(r.spec))
+        && !PEERS.includes(pkgNameOf(r.spec)) && !DEPS.includes(pkgNameOf(r.spec))
+        && !(r.half === 'client' && (CLIENT_EXTERNALS.includes(r.spec) || CLIENT_EXTERNALS.includes(pkgNameOf(r.spec)))))
       .map((r) => `${r.file}:${r.line} 值导入了 devDep '${r.spec}'`
-        + `\n    → 先升 peer（宿主同实例）或 dependencies（内联），再保持值导入；或改回 import type`)
+        + `\n    → 先升 peer（宿主同实例）或 dependencies（内联），再保持值导入；或改回 import type`
+        + `\n    （client 半边例外：若该包由模块表供给，请把它加进 package.json 的 dsh.client.external）`)
     expect(offenders, `devDependencies 被值导入：\n${offenders.join('\n')}`).toEqual([])
   })
 })
