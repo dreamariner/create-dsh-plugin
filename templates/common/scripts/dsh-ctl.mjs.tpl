@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // __PACKAGE_NAME__ :: dsh-ctl.mjs — DSH 实例管理（状态 / 启动 / 重启 / 停止 / 装载探针）
 //
-// ## 为什么需要它（机制借自 luna-dsh issue 020/026/034 的实测教训）
+// ## 为什么需要它（机制借自早期插件仓的实测教训）
 //
 // **教训 1 · 停止不能走信号。** DSH 的 Electron 主进程在 `before-quit` 里总是
 // `event.preventDefault()`，随后检查在飞任务，任一为真就弹原生模态确认框等人点。

@@ -71,7 +71,7 @@ function buildRootManifest(input: ManifestInput): Record<string, unknown> {
       dev: 'pnpm -r --parallel dev',
       // 一条命令装进 DSH profile：装包 + 登记 bundles + 自检（desktop profile 无官方 reconcile）
       'profile:add': 'node scripts/profile-add.mjs',
-      // DSH 实例管理（启动 / 重启 / 停止 / 状态 / 装载探针；机制借 luna-dsh issue 020/026/034）
+      // DSH 实例管理（启动 / 重启 / 停止 / 状态 / 装载探针；机制借自早期插件仓的实测经验）
       'dsh:start': 'node scripts/dsh-ctl.mjs start',
       'dsh:restart': 'node scripts/dsh-ctl.mjs restart',
       'dsh:stop': 'node scripts/dsh-ctl.mjs stop',
