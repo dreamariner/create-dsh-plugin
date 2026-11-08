@@ -3,6 +3,7 @@
 // 用法：
 //   npx @dreamariner/create-dsh-plugin [add] [name] [--type host|client|full] [--dir <dir>]
 //                                      [--title <t>] [--description <d>]
+//                                      [--author <a>] [--homepage <u>] [--repository <u>]
 //                                      [--protocol-url <u>] [--no-install] [--no-git]
 // 缺省的项回落到交互式提问。
 //
@@ -20,6 +21,12 @@ export interface CliArgs {
   dir?: string
   title?: string
   description?: string
+  /** 署名（manifest author；取值链见 repo.ts：flag > git config user.name）。 */
+  author?: string
+  /** 主页（manifest homepage；flag > repository 网页）。 */
+  homepage?: string
+  /** 仓库页（manifest repository.url；flag > origin remote > scope 推导）。 */
+  repository?: string
   /** typert 协议声明源共享仓的 git URL（full 形态自动挂 submodule 用）。 */
   protocolUrl?: string
   install: boolean
@@ -64,6 +71,15 @@ export function parseArgs(argv: string[]): CliArgs {
         break
       case '--description':
         out.description = rest[++i]
+        break
+      case '--author':
+        out.author = rest[++i]
+        break
+      case '--homepage':
+        out.homepage = rest[++i]
+        break
+      case '--repository':
+        out.repository = rest[++i]
         break
       case '--protocol-url':
         out.protocolUrl = rest[++i]

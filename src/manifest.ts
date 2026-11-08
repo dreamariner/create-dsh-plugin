@@ -9,7 +9,7 @@
 
 import type { PluginType } from './types.ts'
 
-/** DSH 版本锚：与官方打包版 rc.3 对齐（升级时改这里 + tsconfig/模板注释里的版本）。 */
+/** DSH 版本锚：与官方打包版 0.2.2-rc.1 对齐（升级时改这里 + tsconfig/模板注释里的版本）。 */
 export const DSH_VERSION = '0.2.2-rc.1'
 
 /** schemastery（配置校验）的宿主共享版本：peer 范围 + dev 精确钉（不变式 I1）。 */
@@ -26,6 +26,15 @@ export interface ManifestInput {
   /** 项目名（根壳 manifest 名的来源）；缺省 = pluginId。与包名解耦：
    *  多插件项目的项目名一般不该是第一个插件的名字。 */
   projectName?: string
+  /** 署名（manifest author；市场索引展示字段，生成器无兜底）。缺省省略。 */
+  author?: string
+  /** 主页（manifest homepage，http(s)；市场索引展示字段）。缺省省略。 */
+  homepage?: string
+  /** 仓库网页 URL（已归一化 https；市场索引展示字段）。缺省省略。 */
+  repository?: string
+  /** 仓库内包目录（workspace 布局 = packages/<id>，让市场索引定位仓内子目录；
+   *  single = 仓根，不带 directory）。由 render 层按布局给出。 */
+  repositoryDirectory?: string
 }
 
 /** 仓库布局按形态走，不按假设走：
@@ -180,6 +189,17 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
     ? ['lib', 'lib/typert.host.js', 'lib/typert.host.d.ts', 'lib/typert.remote-client.js', 'lib/typert.remote-client.d.ts', 'cordis.patch.yml', 'locale', 'icon.svg', 'README.md', 'LICENSE']
     : ['lib', 'cordis.patch.yml', 'locale', 'icon.svg', 'README.md', 'LICENSE']
 
+  // 市场索引展示三字段（官方 plugin-market-generator 收录时读取且无兜底）。
+  // repository 用 npm 对象形态：workspace 布局的包住 packages/<id>/，directory
+  // 让生成器定位仓内子目录（格式要求相对 POSIX 目录）；single = 仓根，不带。
+  const repository = input.repository === undefined
+    ? undefined
+    : {
+        type: 'git',
+        url: input.repository,
+        ...(input.repositoryDirectory !== undefined ? { directory: input.repositoryDirectory } : {}),
+      }
+
   return {
     name: packageName,
     description,
@@ -191,6 +211,9 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
     scripts,
     keywords: ['dsh', 'deepseek-harness', 'cordis', pluginId],
     license: 'Apache-2.0',
+    ...(input.author !== undefined ? { author: input.author } : {}),
+    ...(input.homepage !== undefined ? { homepage: input.homepage } : {}),
+    ...(repository !== undefined ? { repository } : {}),
     publishConfig: { access: 'public' },
     engines: { dsh: `>=${DSH_VERSION} <0.3.0-0` },
     dsh,

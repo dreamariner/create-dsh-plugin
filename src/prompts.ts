@@ -12,6 +12,7 @@ import * as p from '@clack/prompts'
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parseArgs, validateName, validateProjectName, type CliArgs } from './args.ts'
+import { resolveRepoFields } from './repo.ts'
 import { PLUGIN_TYPES, type PluginType, type ScaffoldOptions } from './types.ts'
 
 export async function promptScaffold(argv: string[]): Promise<ScaffoldOptions> {
@@ -56,7 +57,12 @@ export async function promptScaffold(argv: string[]): Promise<ScaffoldOptions> {
   const title = args.title ?? pluginId
   const description = args.description ?? `${pluginId}：DeepSeek Harness 插件`
 
-  return { command: args.command, projectName, packageName, pluginId, type, targetDir, title, description, protocolUrl: args.protocolUrl, install: args.install, git: args.git }
+  // 市场展示三字段（author / homepage / repository）：flag > git origin > scope
+  // 推导，见 repo.ts。在唯一构造点解析；flag 非法在这里就报错（渲染开始前）。
+  // create 全新目录尚未 git init，origin 自然落空走 scope 推导；add / 重排命中 origin
+  const repoFields = resolveRepoFields({ packageName, targetDir, author: args.author, homepage: args.homepage, repository: args.repository })
+
+  return { command: args.command, projectName, packageName, pluginId, type, targetDir, title, description, ...repoFields, protocolUrl: args.protocolUrl, install: args.install, git: args.git }
 }
 
 /** add 模式的目标校验：返回 undefined = 可以追加，返回文案 = 阻止原因。 */

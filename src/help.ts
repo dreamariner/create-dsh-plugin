@@ -23,6 +23,12 @@ export function runHelp(): void {
                        add：workspace 仓根（默认：当前目录）
   --title <t>          人读名（默认：插件 id；写入 locale 的 meta.title）
   --description <d>    一句话描述（默认：模板文案，建议生成后修改）
+  --author <name>      署名（manifest author；默认 git config user.name，都没有则省略）
+  --homepage <url>     主页（manifest homepage，须 http(s)；默认跟随 repository 网页）
+  --repository <url>   仓库页（manifest repository；支持 https URL / git URL /
+                       git@host:path / github:o/r，自动归一化成 https 网页 URL；
+                       默认读 origin remote（目标为仓库顶层时），再退包名 scope
+                       推 github 地址，都没有则省略）
   --protocol-url <u>   typert 协议声明源共享仓的 git URL（full 形态自动挂 submodule 用；
                        默认 git@github.com:dreamariner/dsh-typert-protocol.git）
   --no-install         生成后不自动 pnpm install
@@ -37,6 +43,8 @@ export function runHelp(): void {
   · 展示元数据（locale/en.json、locale/zh.json、icon.svg，官方 checklist 要求项）
   · 开发循环：pnpm dev（watch）、pnpm dev:hmr（宿主半边 hmr 接线，client 半边自动热替换）
   · 发布配置：prepare 自动构建 + files 白名单 + access=public（每个插件包独立发布）
+  · 市场展示字段：author / homepage / repository 按需写入（官方 plugin-market-generator
+    收录时读取且无兜底；workspace 布局自动带 repository.directory）
   · full 形态：dsh-typert-protocol submodule + typert codegen 全链路（face 配置 /
     remote 契约模板 / 消费端护栏）
   · 自守护栏测试（bundle 形态 / client 边界 / 协议消费端）

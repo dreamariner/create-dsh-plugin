@@ -35,6 +35,13 @@ describe('parseArgs：子命令分发', () => {
     expect(a.protocolUrl).toBe('git@example.com:foo/bar.git')
   })
 
+  it('add：--author / --homepage / --repository 透传', () => {
+    const a = parseArgs(['add', 'x', '--author', 'Lin', '--homepage', 'https://ex.com', '--repository', 'github:o/r'])
+    expect(a.author).toBe('Lin')
+    expect(a.homepage).toBe('https://ex.com')
+    expect(a.repository).toBe('github:o/r')
+  })
+
   it('--project-name 透传（create 与 add 共用解析）', () => {
     expect(parseArgs(['@s/dsh-foo', '--project-name', 'otter-pack', '--type', 'host']).projectName).toBe('otter-pack')
     expect(parseArgs(['add', 'x', '--project-name', 'otter-pack']).projectName).toBe('otter-pack')

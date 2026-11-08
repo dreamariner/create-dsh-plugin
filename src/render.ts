@@ -27,10 +27,11 @@ import type { PluginType, RenderFile, ScaffoldOptions } from './types.ts'
 
 const TEMPLATES = join(dirname(fileURLToPath(import.meta.url)), '..', 'templates')
 
-/** 模板占位符 → 生成值。layout 感知：single 布局插件包就在根（'.'），manifest-deps
- *  引用路径也随布局变（workspace 插件包住 packages/<id>/，要 ../../）。 */
-export function substitutionsOf(opts: ScaffoldOptions): Record<string, string> {
-  const single = layoutOf(opts.type) === 'single'
+/** 模板占位符 → 生成值。layout 显式可传（缺省按类型推导）：add 往 workspace 追加
+ *  host / client 插件时，文件落 packages/<id>/，占位符必须按 workspace 取值，
+ *  不能按插件形态推导（single 形态的占位符会让护栏 spec 找错 manifest 与源码目录）。 */
+export function substitutionsOf(opts: ScaffoldOptions, layout: 'single' | 'workspace' = layoutOf(opts.type)): Record<string, string> {
+  const single = layout === 'single'
   return {
     __PROJECT_NAME__: opts.projectName ?? opts.pluginId,
     __PACKAGE_NAME__: opts.packageName,
@@ -214,7 +215,9 @@ export function renderProject(opts: ScaffoldOptions): number {
   const { targetDir } = opts
   mkdirSync(targetDir, { recursive: true })
 
-  const manifests = buildManifests(opts)
+  // repository.directory 按布局给：workspace 包住 packages/<id>/；single = 根，不带
+  const workspace = layoutOf(opts.type) === 'workspace'
+  const manifests = buildManifests({ ...opts, ...(workspace ? { repositoryDirectory: `packages/${opts.pluginId}` } : {}) })
   writeFileSync(join(targetDir, 'package.json'), `${JSON.stringify(manifests.root, null, 2)}\n`)
   let count = 1
   if (manifests.plugin !== null) {
@@ -227,7 +230,8 @@ export function renderProject(opts: ScaffoldOptions): number {
 
 /** 渲染单个插件包（add 模式）：插件 manifest + 插件文件清单，写进既有 workspace 仓根。 */
 export function renderPluginPackage(opts: ScaffoldOptions): number {
-  writePluginManifest(opts, buildPackageManifest(opts))
+  // add 恒为 workspace 布局（与 buildPluginPlan 的强制一致），directory 恒给
+  writePluginManifest(opts, buildPackageManifest({ ...opts, repositoryDirectory: `packages/${opts.pluginId}` }))
   return 1 + renderFiles(opts, buildPluginPlan(opts.type, opts.pluginId, 'workspace'), opts.targetDir, 'workspace')
 }
 
@@ -239,7 +243,8 @@ function writePluginManifest(opts: ScaffoldOptions, manifest: Record<string, unk
 
 /** 渲染一组计划文件到 rootDir 下（.tpl 做替换，非 .tpl 原样拷贝）。返回写入数。 */
 function renderFiles(opts: ScaffoldOptions, plan: RenderFile[], rootDir: string, layout: 'single' | 'workspace'): number {
-  const sub = substitutionsOf(opts)
+  // 占位符与文件落位用同一份 layout：add 追加 host / client 时两者都是 workspace
+  const sub = substitutionsOf(opts, layout)
   let count = 0
   for (const file of plan) {
     const src = join(TEMPLATES, file.from)

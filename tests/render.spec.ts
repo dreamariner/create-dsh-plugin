@@ -346,3 +346,97 @@ describe('add：向既有 workspace 仓追加插件包', () => {
     expect(buildRootPlan('full').map((f) => f.to)).toEqual(WORKSPACE_ROOT)
   })
 })
+
+describe('市场展示字段（author / homepage / repository）', () => {
+  it('提供时写入 manifest；single 布局 repository 无 directory', () => {
+    const manifest = buildPackageManifest(fakeOpts('host', {
+      author: 'Jianan',
+      homepage: 'https://github.com/acme/dsh-demo',
+      repository: 'https://github.com/acme/dsh-demo',
+    }))
+    expect(manifest.author).toBe('Jianan')
+    expect(manifest.homepage).toBe('https://github.com/acme/dsh-demo')
+    expect(manifest.repository).toEqual({ type: 'git', url: 'https://github.com/acme/dsh-demo' })
+  })
+
+  it('未提供时三个键都不存在（manifest 不写空值）', () => {
+    const manifest = buildPackageManifest(fakeOpts('client'))
+    expect(manifest.author).toBeUndefined()
+    expect(manifest.homepage).toBeUndefined()
+    expect(manifest.repository).toBeUndefined()
+  })
+
+  it('workspace 布局（full）：repository.directory = packages/<id>', () => {
+    const manifest = buildPackageManifest({
+      ...fakeOpts('full'),
+      repository: 'https://github.com/acme/otter-pack',
+      repositoryDirectory: 'packages/dsh-demo',
+    }) as { repository: { type: string; url: string; directory?: string } }
+    expect(manifest.repository).toEqual({ type: 'git', url: 'https://github.com/acme/otter-pack', directory: 'packages/dsh-demo' })
+  })
+
+  it('端到端 create：字段进插件 manifest，workspace 根壳不带', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-market-'))
+    try {
+      renderProject(fakeOpts('full', {
+        targetDir: dir,
+        author: 'Jianan',
+        homepage: 'https://github.com/acme/otter-pack',
+        repository: 'https://github.com/acme/otter-pack',
+      }))
+      const plugin = JSON.parse(readFileSync(join(dir, 'packages/dsh-demo/package.json'), 'utf8'))
+      expect(plugin.author).toBe('Jianan')
+      expect(plugin.repository).toEqual({ type: 'git', url: 'https://github.com/acme/otter-pack', directory: 'packages/dsh-demo' })
+      const root = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+      expect(root.author).toBeUndefined()
+      expect(root.repository).toBeUndefined()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('端到端 add：renderPluginPackage 恒带 repository.directory', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-add-market-'))
+    try {
+      renderPluginPackage(fakeOpts('client', { targetDir: dir, repository: 'https://github.com/acme/otter-pack' }))
+      const pkg = JSON.parse(readFileSync(join(dir, 'packages/dsh-demo/package.json'), 'utf8'))
+      expect(pkg.repository).toEqual({ type: 'git', url: 'https://github.com/acme/otter-pack', directory: 'packages/dsh-demo' })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('add 路径占位符按 workspace 取值（回归：护栏 spec 找对 manifest 与源码目录）', () => {
+  it('追加 client：spec 的 __PLUGIN_REL__ 是 packages/<id>，不是 single 的根', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-add-sub-'))
+    try {
+      renderPluginPackage(fakeOpts('client', { command: 'add', packageName: '@acme/dsh-bar', pluginId: 'dsh-bar', targetDir: dir }))
+      expect(readFileSync(join(dir, 'packages/dsh-bar/tests/bundle-shape.spec.ts'), 'utf8'))
+        .toContain("join(ROOT, 'packages/dsh-bar')")
+      expect(readFileSync(join(dir, 'packages/dsh-bar/tests/client-boundary.spec.ts'), 'utf8'))
+        .toContain("join(process.cwd(), 'packages/dsh-bar', 'src', 'client')")
+      expect(readFileSync(join(dir, 'packages/dsh-bar/tests/import-guard.spec.ts'), 'utf8'))
+        .toContain("join(ROOT, 'packages/dsh-bar')")
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('追加 host：tsdown 配置引用 ../../scripts（single 值会让 pnpm -r build 断链）', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-add-sub-host-'))
+    try {
+      renderPluginPackage(fakeOpts('host', { command: 'add', packageName: '@acme/dsh-host2', pluginId: 'dsh-host2', targetDir: dir }))
+      expect(readFileSync(join(dir, 'packages/dsh-host2/tsdown.config.ts'), 'utf8'))
+        .toContain('../../scripts/lib/manifest-deps.mjs')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('create 路径默认推导不变：single 仓占位符仍是根形态', () => {
+    expect(substitutionsOf(fakeOpts('host')).__PLUGIN_REL__).toBe('.')
+    expect(substitutionsOf(fakeOpts('host')).__SELF_LINK_SUFFIX__).toBe('')
+    expect(substitutionsOf(fakeOpts('full')).__PLUGIN_REL__).toBe('packages/dsh-demo')
+  })
+})

@@ -80,6 +80,11 @@ workspace 布局不是 full 的权宜：typert 生成器结构性要求被分析
   `pnpm dev:hmr`（host 半边注册进本机 home patch 的 hmr watch 根；client 半边由 DSH 的
   client-hmr 自动热替换）
 - **发布配置**：`files` 白名单 + `publishConfig.access=public` + `engines.dsh` 版本范围
+- **市场展示字段**：`author` / `homepage` / `repository` 按需写入（官方 plugin-market-generator
+  收录时读取且无兜底，缺失则 Discover 卡片留白）。来源链：`--author` / `--homepage` /
+  `--repository` flag > git origin remote（目标为仓库顶层时）> 包名 scope 推 github 地址；
+  URL 一律先归一化成 https 网页 URL（未知主机的 scp 形式生成器解析不了）；
+  workspace 布局自动带 `repository.directory`。都没有则省略，manifest 不写空值
 - **自守护栏**：bundle 形态（dsh.bundle 声明 / files 白名单 / 自挂载行写法）、client 边界
   （不 import `node:`、不 import 任何 `@deepseek-ai/dsh-client-*` 包）
 
@@ -90,7 +95,7 @@ workspace 布局不是 full 的权宜：typert 生成器结构性要求被分析
   「不 require Harness Client 包」等硬规则）
 - `dreamariner/dsh-web-search-minimax`：已验证 npm 可发布的完整 host 先例
 - 双端插件的构建与护栏形态：同代 DSH 外部插件仓的实战沉淀
-- DSH 版本锚：`0.2.1-rc.3`（`src/manifest.ts` 的 `DSH_VERSION`）
+- DSH 版本锚：`0.2.2-rc.1`（`src/manifest.ts` 的 `DSH_VERSION`）
 
 ## 开发本仓
 

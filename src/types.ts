@@ -22,6 +22,14 @@ export interface ScaffoldOptions {
   title: string
   /** 一句话描述（meta.description / manifest description） */
   description: string
+  /** 署名（manifest author；官方 plugin-market-generator 收录时读取且无兜底）。
+   *  来源链见 repo.ts：--author > git config user.name，都没有则省略 */
+  author?: string
+  /** 主页（manifest homepage，须 http(s)）。--homepage > repository 网页，都没有则省略 */
+  homepage?: string
+  /** 仓库网页 URL（manifest repository.url，已归一化 https）。--repository >
+   *  git origin（目标为仓库顶层时）> 包名 scope 推 github 地址，都没有则省略 */
+  repository?: string
   type: PluginType
   /** 工作目录（绝对路径）：create = 生成目标目录；add = 既有 workspace 仓根 */
   targetDir: string
