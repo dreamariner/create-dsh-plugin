@@ -119,4 +119,7 @@ pnpm build       # 单文件 bin（lib/index.js，shebang 保留 + 依赖全量�
 pnpm publish     # prepare 构建后打包；scoped 包已配 access=public
 ```
 
+发布前在 [CHANGELOG.md](CHANGELOG.md) 记版本条目（含日期），随发布 commit 一起上；
+发布后打 `git tag <版本>` 并推送，GitHub 的 compare 链接与 Releases 页都靠 tag。
+
 发布后：`npx @dreamariner/create-dsh-plugin`。
