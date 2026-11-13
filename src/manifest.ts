@@ -9,14 +9,17 @@
 
 import type { PluginType } from './types.ts'
 
-/** DSH 版本锚：与官方打包版 0.2.2-rc.1 对齐（升级时改这里 + tsconfig/模板注释里的版本）。 */
-export const DSH_VERSION = '0.2.2-rc.1'
+/** DSH 版本锚：与官方打包版 0.2.2-rc.2 对齐（升级时改这里 + tsconfig/模板注释里的版本）。 */
+export const DSH_VERSION = '0.2.2-rc.2'
 
-/** schemastery（配置校验）的宿主共享版本：peer 范围 + dev 精确钉（不变式 I1）。 */
-const SCHEMASTERY = { peer: '>=3.18.5 <4.0.0-0', dev: '3.18.5' } as const
+/** schemastery（配置校验）的宿主共享版本：peer 范围 + dev 精确钉（不变式 I1）。
+ *  数值 = DSH 0.2.2-rc.2 的 vendor 实况（deepseek-harness/vendor/schemastery 3.19.0），
+ *  与同代外部插件仓的实钉一致。 */
+const SCHEMASTERY = { peer: '>=3.19.0 <4.0.0-0', dev: '3.19.0' } as const
 
-/** @deepseek-ai/cordis（Context 类型来源）：dev 精确钉（类型源）。 */
-const CORDIS_DEV = '4.0.5'
+/** @deepseek-ai/cordis（Context 类型来源）：dev 精确钉（类型源）。
+ *  数值 = DSH 0.2.2-rc.2 的 vendor 实况（deepseek-harness/vendor/cordis 4.1.0）。 */
+const CORDIS_DEV = '4.1.0'
 
 export interface ManifestInput {
   packageName: string
@@ -135,7 +138,7 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
     dsh.client = { platform: 'web', immediately: true, inject: [], external: [] }
   }
 
-  const dependencies: Record<string, string> | undefined = hasTypert ? { zod: '^4.4.3' } : undefined
+  const dependencies: Record<string, string> | undefined = hasTypert ? { zod: '^4.6.6' } : undefined
 
   const peerDependencies: Record<string, string> | undefined = hasHost
     ? {
@@ -183,10 +186,12 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
   }
   // test / typecheck 由 workspace 根壳承载（根 vitest 与根 tsconfig 覆盖全部插件包）
 
-  // typert 生成器硬性校验：files 必须显式包含它要 emit 的 4 个产物文件
+  // typert 生成器硬性校验：files 必须显式包含它要 emit 的产物文件
   // （缺一项构建期直接报「package files must include lib/typert.host.js」）。
+  // 0.2.2-rc.2 起生成器额外要求 remote-client 的 declaration map 入列
+  // （生成的 d.ts 带 sourceMappingURL，map 随包发行供安装态导航）。
   const files: string[] = hasTypert
-    ? ['lib', 'lib/typert.host.js', 'lib/typert.host.d.ts', 'lib/typert.remote-client.js', 'lib/typert.remote-client.d.ts', 'cordis.patch.yml', 'locale', 'icon.svg', 'README.md', 'LICENSE']
+    ? ['lib', 'lib/typert.host.js', 'lib/typert.host.d.ts', 'lib/typert.remote-client.js', 'lib/typert.remote-client.d.ts', 'lib/typert.remote-client.d.ts.map', 'cordis.patch.yml', 'locale', 'icon.svg', 'README.md', 'LICENSE']
     : ['lib', 'cordis.patch.yml', 'locale', 'icon.svg', 'README.md', 'LICENSE']
 
   // 市场索引展示三字段（官方 plugin-market-generator 收录时读取且无兜底）。

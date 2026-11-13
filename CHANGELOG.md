@@ -3,6 +3,26 @@
 本仓所有显著变更记录于此。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（0.x 阶段 minor 允许破坏性变更）。
 
+## [0.3.2] - 2026-11-13
+
+### 变更
+
+- DSH 版本锚 `0.2.2-rc.1` → `0.2.2-rc.2`（`src/manifest.ts` 的 `DSH_VERSION`）：生成物 peer 范围、
+  typert-generator / typert-protocol dev 精确钉同步。vendor 数值不变（cordis 4.1.0、schemastery 3.19.0）
+- full 形态生成物 `files` 增加 `lib/typert.remote-client.d.ts.map`：DSH 0.2.2-rc.2 的 typert 生成器
+  硬性要求 remote-client 的 declaration map 入列（生成的 d.ts 带 sourceMappingURL，map 随包发行），
+  缺它构建期直接报「package files must include lib/typert.remote-client.d.ts.map」
+- full 形态生成物 dependencies 的 zod `^4.4.3` → `^4.6.6`：上游协议包 0.2.2-rc.2 起精确 pin zod 4.6.6
+
+## [0.3.1] - 2026-11-12
+
+### 变更
+
+- 依赖锚同步宿主实况：schemastery `3.18.5` → `3.19.0`（peer 范围 `>=3.19.0 <4.0.0-0` + dev 精确钉）、
+  cordis dev 精确钉 `4.0.5` → `4.1.0`。依据：DSH `0.2.2-rc.1` 的 vendor 版本
+  （deepseek-harness `vendor/cordis` 4.1.0、`vendor/schemastery` 3.19.0），与同代外部插件仓的实钉一致。
+  宿主对这二者从不降级，生成物 peer 收窄到 `3.19.0` 起不会排除任何在跑的宿主
+
 ## [0.3.0] - 2026-11-08
 
 ### 新增
@@ -77,6 +97,7 @@
 - 根 tsconfig 收编全部插件包 tests（测试也进类型检查）
 - 生成物 manifest 的 exports 补展示元数据导出面（`./locale/*.json` 与 `./icon`）
 
+[0.3.1]: https://github.com/dreamariner/create-dsh-plugin/compare/0.3.0...0.3.1
 [0.3.0]: https://github.com/dreamariner/create-dsh-plugin/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/dreamariner/create-dsh-plugin/compare/0.1.1...0.2.0
 [0.1.1]: https://github.com/dreamariner/create-dsh-plugin/compare/0.1.0...0.1.1

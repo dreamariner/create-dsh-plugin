@@ -78,7 +78,7 @@ pnpm profile:add --npm     # 发布后：从 npm 装
 
 - **gitignore 锚定**：`lib/` 规则必须是 `/lib/`（单包）或 `packages/*/lib/`（workspace）。裸 `lib/` 会任意深度匹配、`git add` 时静默跳过 `scripts/lib/manifest-deps.mjs`，clone 出来的仓 build 必挂。**0.1.0 版脚手架生成的仓是裸 `lib/`，手动锚定一次**（0.1.1 起已修）
 - **发布面无 src**：`files` 与 `exports` 不带源码是收口后的口径（0.1.0 生成的仓带 src，升级后手动收一次）
-- **DSH 版本锚 `0.2.2-rc.1`**：peer 范围与 engines 锚在此，升级 DSH 时同步
+- **DSH 版本锚 `0.2.2-rc.2`**：peer 范围与 engines 锚在此，升级 DSH 时同步
 - **typert 纪律（full）**：face 方法只声明在 `src/remote.ts`；协议包 devDep 必须裸精确版本（放宽会让 vendor 副本成为合法候选）；zod 必须留在 dependencies（生成产物 import 它）
 - **行文不用破折号「——」**（zero 知识库行文规范）
 

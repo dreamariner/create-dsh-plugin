@@ -132,7 +132,7 @@ describe('模板矩阵（布局按形态走）', () => {
           expect(readme).not.toContain('allowBuilds')
           if (type === 'host') {
             expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBeTypeOf('string')
-            expect(manifest.devDependencies['@deepseek-ai/cordis']).toBe('4.0.5')
+            expect(manifest.devDependencies['@deepseek-ai/cordis']).toBe('4.1.0')
             expect(manifest.devDependencies['react']).toBeUndefined()
             expect(manifest.exports['./client']).toBeUndefined()
             expect(manifest.dsh.client).toBeUndefined()
@@ -165,12 +165,12 @@ describe('模板矩阵（布局按形态走）', () => {
           expect(plugin.dsh.bundle.patch).toBe('./cordis.patch.yml')
           expect(plugin.exports['./locale/*.json']).toBe('./locale/*.json')
           expect(plugin.exports['./icon']).toBe('./icon.svg')
-          expect(plugin.peerDependencies['@deepseek-ai/dsh-typert-protocol']).toBe('>=0.2.2-rc.1 <0.3.0-0')
-          expect(plugin.devDependencies['@deepseek-ai/dsh-typert-protocol']).toBe('0.2.2-rc.1')
-          expect(plugin.devDependencies['@deepseek-ai/dsh-typert-generator']).toBe('0.2.2-rc.1')
+          expect(plugin.peerDependencies['@deepseek-ai/dsh-typert-protocol']).toBe('>=0.2.2-rc.2 <0.3.0-0')
+          expect(plugin.devDependencies['@deepseek-ai/dsh-typert-protocol']).toBe('0.2.2-rc.2')
+          expect(plugin.devDependencies['@deepseek-ai/dsh-typert-generator']).toBe('0.2.2-rc.2')
           expect((plugin.exports['./typert'] as { default: string }).default).toBe('./lib/typert.host.js')
           expect((plugin.exports['./remote'] as { default: string }).default).toBe('./lib/typert.remote-client.js')
-          expect(plugin.dependencies.zod).toBe('^4.4.3')
+          expect(plugin.dependencies.zod).toBe('^4.6.6')
           expect(readFileSync(join(dir, 'scripts/ensure-protocol.mjs'), 'utf8')).toContain('packages/protocol')
           expect(readFileSync(join(dir, 'scripts/profile-add.mjs'), 'utf8')).toContain("const NAME = '@acme/dsh-demo'")
           expect(readFileSync(join(dir, 'scripts/profile-add.mjs'), 'utf8')).toContain("SELF_SUFFIX = '/packages/dsh-demo'")
@@ -187,13 +187,13 @@ describe('模板矩阵（布局按形态走）', () => {
   it('插件 manifest 的 devDeps 按类型精确变化（host 有 schemastery+cordis，client 有 react）', () => {
     const host = buildPackageManifest({ packageName: 'a', pluginId: 'a', description: 'a', type: 'host' }) as { devDependencies: Record<string, string> }
     const client = buildPackageManifest({ packageName: 'b', pluginId: 'b', description: 'b', type: 'client' }) as { devDependencies: Record<string, string> }
-    expect(host.devDependencies['@deepseek-ai/schemastery']).toBe('3.18.5')
-    expect(host.devDependencies['@deepseek-ai/cordis']).toBe('4.0.5')
+    expect(host.devDependencies['@deepseek-ai/schemastery']).toBe('3.19.0')
+    expect(host.devDependencies['@deepseek-ai/cordis']).toBe('4.1.0')
     expect(client.devDependencies['@deepseek-ai/schemastery']).toBeUndefined()
     expect(client.devDependencies['react']).toBe('^18.2.0')
     const full = buildManifests({ packageName: 'c', pluginId: 'c', description: 'c', type: 'full' })
     expect(full.root.name).toBe('c-workspace')
-    expect((full.plugin!.devDependencies as Record<string, string>)['@deepseek-ai/dsh-typert-generator']).toBe('0.2.2-rc.1')
+    expect((full.plugin!.devDependencies as Record<string, string>)['@deepseek-ai/dsh-typert-generator']).toBe('0.2.2-rc.2')
   })
 
   it('substitutions 布局感知（__PLUGIN_REL__ / __MANIFEST_DEPS_REL__）', () => {
