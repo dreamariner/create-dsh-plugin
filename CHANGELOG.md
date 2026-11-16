@@ -3,6 +3,24 @@
 本仓所有显著变更记录于此。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（0.x 阶段 minor 允许破坏性变更）。
 
+## [0.4.0] - 2026-11-16
+
+### 新增
+
+- `dsh-ctl.mjs` 实例管理升级为「机制 + 门 + 可测试导出面」三合一（机制借自早期插件仓
+  instance-control 的实测经验，随实例控制统一上浮为标准能力）：
+  - **导出化**：isMain 双形态，护栏测试可 `import { status, stop, probe, … }`
+  - **仓根 .env 自动加载**：真实环境变量优先、.env 只补缺、缺失静默 no-op（内联实现，
+    不新增模板文件）；机密仍只进 `~/.dsh/.env`，仓根 .env 只放路径/端口/形态/开关
+  - **版本门**：根 manifest 有 `dshVersion` 字段时，启动前对账官方打包版
+    `CFBundleShortVersionString`，不符拒启（`DSH_ALLOW_VERSION_MISMATCH=1` 越过）；
+    字段缺失 = 门不启用，存量仓零影响
+  - **在飞回合守卫**：`DSH_INFLIGHT_GUARD=1` 开启后，stop/restart 前扫 `$DSH_HOME/sessions`
+    下 2 小时内活跃会话（session.v*.jsonl 取最大版本判读），turn/start 无配对 turn/end
+    即拦下（`DSH_FORCE_STOP=1` 越过）
+  - `status --json`（供 automation）与 `record` 子命令（wrapper 型启动脚本注入状态）
+- 根 manifest 发射 `dshVersion` 字段（= DSH 版本锚，版本门的对账源；single 布局落包 manifest）
+
 ## [0.3.2] - 2026-11-13
 
 ### 变更
@@ -99,6 +117,7 @@
 - 根 tsconfig 收编全部插件包 tests（测试也进类型检查）
 - 生成物 manifest 的 exports 补展示元数据导出面（`./locale/*.json` 与 `./icon`）
 
+[0.4.0]: https://github.com/dreamariner/create-dsh-plugin/compare/0.3.1...0.4.0
 [0.3.1]: https://github.com/dreamariner/create-dsh-plugin/compare/0.3.0...0.3.1
 [0.3.0]: https://github.com/dreamariner/create-dsh-plugin/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/dreamariner/create-dsh-plugin/compare/0.1.1...0.2.0

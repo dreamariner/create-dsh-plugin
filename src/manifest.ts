@@ -77,6 +77,9 @@ function buildRootManifest(input: ManifestInput): Record<string, unknown> {
     version: '0.1.0',
     type: 'module',
     packageManager: 'pnpm@11.7.0',
+    // 版本锚（机器可读真相源）：scripts/dsh-ctl.mjs 的版本门启动时拿它对账官方打包版
+    // CFBundleShortVersionString；升级 DSH 时随 DSH_VERSION 锚一起更新。
+    dshVersion: DSH_VERSION,
     scripts: {
       // -r = 递归全部 workspace 成员：add 新插件后无需改根壳
       build: 'pnpm -r build',
@@ -236,6 +239,9 @@ export function buildSingleManifest(input: ManifestInput): Record<string, unknow
   return {
     ...base,
     packageManager: 'pnpm@11.7.0',
+    // 版本锚（机器可读真相源）：single 布局根 = 包，字段落在本 manifest；
+    // scripts/dsh-ctl.mjs 的版本门启动时拿它对账官方打包版。
+    dshVersion: DSH_VERSION,
     scripts: {
       ...base.scripts,
       // hmr 原是 workspace 根壳的脚本，single 布局下由本包承载

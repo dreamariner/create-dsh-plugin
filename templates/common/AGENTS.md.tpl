@@ -73,9 +73,12 @@ pnpm dev:hmr        # host 半边热重载接线（client 半边重建即热替�
 pnpm profile:add    # link: 安装进 ~/.dsh/profiles/desktop（缺依赖自动 install、装前自动构建、登记名单、自检）
 
 # ── DSH 实例管理 ──
-pnpm dsh:status     # 实例在跑与否 + 访问地址
-pnpm dsh:start [前台|后台]   # 启动实例（打包版带 --inspect；启动前有构建门）
-pnpm dsh:restart    # 优雅停止后重启（默认后台）
+# 门：构建（恒开）+ 版本（根 manifest 有 dshVersion 时对账官方版，DSH_ALLOW_VERSION_MISMATCH=1 越过）
+#    + 在飞回合守卫（DSH_INFLIGHT_GUARD=1 开启，DSH_FORCE_STOP=1 越过）。
+# 仓根 .env（gitignored）自动加载：真实环境变量优先，.env 只补缺（路径/端口/形态/开关）。
+pnpm dsh:status     # 实例在跑与否 + 访问地址（--json 供 automation）
+pnpm dsh:start [前台|后台]   # 启动实例（打包版带 --inspect；启动前过构建门与版本门）
+pnpm dsh:restart    # 优雅停止后重启（默认后台；stop/restart 前过在飞守卫）
 pnpm dsh:stop       # 优雅停止（inspector 自动应答退出；兜底属主圈定）
 pnpm dsh:probe      # 连实例验证本插件装载且 active（pluginInventory/list）
 ```

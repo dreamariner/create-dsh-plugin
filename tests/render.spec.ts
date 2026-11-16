@@ -9,7 +9,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildPlan, buildPluginPlan, buildRootPlan, renderPluginPackage, renderProject, substitutionsOf } from '../src/render.ts'
-import { buildManifests, buildPackageManifest, layoutOf } from '../src/manifest.ts'
+import { buildManifests, buildPackageManifest, layoutOf, DSH_VERSION } from '../src/manifest.ts'
 import { wireHostFaceConfig } from '../src/finalize.ts'
 import type { PluginType, ScaffoldOptions } from '../src/types.ts'
 
@@ -92,6 +92,7 @@ describe('模板矩阵（布局按形态走）', () => {
 
         const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
         expect(manifest.packageManager).toBe('pnpm@11.7.0')
+        expect(manifest.dshVersion).toBe(DSH_VERSION) // 版本锚：dsh-ctl 版本门的对账源
 
         if (single) {
           // 根 = 插件包：名字就是包名，可发布（无 private），测试/类型检查本仓承载
@@ -104,6 +105,11 @@ describe('模板矩阵（布局按形态走）', () => {
           expect(manifest.scripts['dev:hmr']).toBe(type === 'host' ? 'node scripts/dev-hmr.mjs' : undefined)
           expect(manifest.scripts['profile:add']).toBe('node scripts/profile-add.mjs')
           expect(manifest.scripts['dsh:status']).toBe('node scripts/dsh-ctl.mjs status')
+          const ctl = readFileSync(join(dir, 'scripts/dsh-ctl.mjs'), 'utf8')
+          expect(ctl, '0.4.0：导出化（护栏测试可 import）').toContain('export {')
+          expect(ctl, '0.4.0：版本门入标准面').toContain('DSH_ALLOW_VERSION_MISMATCH')
+          expect(ctl, '0.4.0：在飞回合守卫（opt-in）入标准面').toContain('DSH_INFLIGHT_GUARD')
+          expect(ctl, '0.4.0：仓根 .env 自动加载').toContain('loadRepoEnv')
           expect(manifest.exports['.']).toBe('./lib/index.js')
           expect(manifest.files).toContain('README.md')
           expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
