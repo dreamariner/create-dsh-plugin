@@ -57,6 +57,12 @@ __PACKAGE_NAME__：__DESCRIPTION__。由 create-dsh-plugin 生成的 DeepSeek Ha
 - 双端：host 半边 `src/index.ts`（tool + Config + deps 三件套）承接数据与计算；client 半边 `src/client/index.tsx` 承接界面。
 - typert face：client → host 的类型化 RPC，方法只声明在 `src/remote.ts`，构建期生成 `lib/typert.host.*`（宿主装配 wire codec）与 `lib/typert.remote-client.*`（client 侧类型化契约）。
 - 协议声明源：`packages/protocol` submodule（pinned vendor，勿在本仓改它的内容）。
+- 协议包两半边处理有意不同（2026-11-18 定案，勿按旧指引外置）：host 半边 peer → 外置
+  （`neverBundle`，`TypertRemoteService` 基类与宿主 face 装配共享同一实例）；client 半边
+  **内联**（渲染进程模块表种子 `PLATFORM_MODULES` 没有协议包、协议包无 client 模块行，
+  外置必 `missed the module table`；DSH 构建门 `INLINE_SAFE` 明示该层 no runtime identity
+  可内联）。内联的是 npm 发布副本（devDep 裸精确 pin），vendor 只进生成器 face program、
+  不进任何 bundle。完整依据见 `tsdown.client.config.ts` 注释。
 <!--#endif-->
 
 ## 常用命令
@@ -94,7 +100,13 @@ pnpm dsh:probe      # 连实例验证本插件装载且 active（pluginInventory
 - **cordis 只许 `import type { Context }`**：dev 钉版仅服务 typecheck。值导入前必须先把 cordis 升进 peerDependencies，否则 alwaysBundle 会把它内联进产物，运行期出现第二份 cordis 实例（作用域与注册表不跨副本共享，插件静默失灵；教训源自早期插件仓的实测事故（2026-10-22）），导入护栏会拦。
 <!--#endif-->
 <!--#if full-->
-- **typert 纪律**：face 方法只声明在 `src/remote.ts`；协议包 devDep 必须裸精确版本（放宽会让 vendor 副本成为合法候选）；zod 必须留在 dependencies（生成产物 import 它）。
+- **typert 纪律**：face 方法只声明在 `src/remote.ts`；协议包 devDep 必须裸精确版本（放宽会让 vendor 副本成为合法候选）；zod 必须留在 dependencies（生成产物 import 它）；client 半边勿把协议包加进 `EXTERNALS`（内联是唯一可行形态，依据见 `tsdown.client.config.ts` 注释）。
+- **构建顺序：host 段先、client 段后**：client 产物要内联 host 段**当轮**生成的
+  `lib/typert.remote-client.js`（自有子路径不在浏览器模块表里，不能外置）。合成一个
+  tsdown 配置时两段并行跑，client 会内联**上一轮**的旧契约（方法增删后客户端与宿主
+  对不上），fresh clone 时甚至解析不到该文件。故 build 脚本按序跑两条：
+  `tsdown --config tsdown.host.config.ts && tsdown --config tsdown.client.config.ts`；
+  `tsdown.config.ts` 只给 `pnpm dev`（watch 两段）用。
 <!--#endif-->
 - **实例固定经 `pnpm dsh:start` 启动**：打包版要带 `--inspect` 才有 inspector，Dock 直启的实例 stop / restart 管不了；启动前构建门失败会阻断（lib 不入库，没有旧产物可跑）。
 - **行文不用破折号「——」**（zero 知识库行文规范，2026-11-01 起）。

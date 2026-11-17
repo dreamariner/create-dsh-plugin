@@ -66,6 +66,12 @@ pnpm build         # 单次构建（pnpm -r build）
 ```
 
 - **pnpm dev**：watch 重建各包 `lib/index.js`（host 半边）与 `lib/client.js`（client 半边，若有）。
+<!--#if full-->
+- **pnpm build（full 按序两段）**：`tsdown --config tsdown.host.config.ts && tsdown
+  --config tsdown.client.config.ts`。client 产物要内联 host 段**当轮**生成的 wire 契约，
+  并行跑 = 内联上一轮旧契约（改动 `src/remote.ts` 后尤其如此）。`tsdown.config.ts` 是
+  dev watch 组合，两段并行，交付构建勿用它。
+<!--#endif-->
 <!--#if host|full-->
 - **pnpm dev:hmr**：项目级接线（`scripts/dev-hmr.mjs` 一份），把**全部插件包**的
   `lib/` 注册进本机 home patch（`$DSH_HOME/cordis.patch.yml`）的 hmr watch 根；
@@ -118,19 +124,24 @@ icon.svg            插件图标（≤ 256 KiB）
 <!--#if full-->tsconfig.typert.json  typert face program（生成器解析本包源码用）
 <!--#endif-->tests/              bundle 形态守卫 / client 边界护栏 / 自身用例
 <!--#if full-->tsconfig.host.json    typert 生成器的 workspace 聚合配置（registration + paths 重定向）
+tsdown.host.config.ts   host 段构建（typertPlugin 生成 wire 契约；build 先跑）
+tsdown.client.config.ts client 段构建（内联当轮契约；build 后跑）
+tsdown.config.ts        dev watch 组合（两段并行，交付构建勿用）
 packages/protocol/  协议声明源 submodule（dreamariner/dsh-typert-protocol）
 <!--#endif-->```
 
 ## 依赖纪律（不变式，改动前必读）
 
-名单只写在 `package.json` 一处，`tsdown.config.ts` 从它派生：
+名单只写在 `package.json` 一处，tsdown 配置从它派生（host / client 单配置 =
+`tsdown.config.ts`；full 双段 = `tsdown.host.config.ts` + `tsdown.client.config.ts`）：
 
 - `peerDependencies`（schemastery<!--#if full-->、dsh-typert-protocol<!--#endif-->）＝宿主供给同一实例 → 构建外置；
 - `dependencies`（<!--#if full-->zod、<!--#endif-->若有）＝插件自带 → 构建内联；
 - `devDependencies` ＝只许 `import type`（类型源，dev 精确钉版本）。
 
-client 半边的模块表请求（react 系）由宿主渲染进程供给，清单在 `tsdown.config.ts`
-的 `EXTERNALS`，**不能**从 manifest 派生（那是宿主契约不是依赖声明）。
+client 半边的模块表请求（react 系）由宿主渲染进程供给，清单在 client 构建配置的
+`EXTERNALS`（host / client 形态 = `tsdown.config.ts`；full = `tsdown.client.config.ts`），
+**不能**从 manifest 派生（那是宿主契约不是依赖声明）。
 
 <!--#if full-->
 ## typert：client 与 host 的类型化 RPC
@@ -146,9 +157,12 @@ client 半边的模块表请求（react 系）由宿主渲染进程供给，清�
    引用）+ `tsconfig.typert.json`（生成器解析本包源码）。
    两个文件只被生成器读，根 `tsconfig.json` 已 exclude 声明源目录（避免与 npm 包
    d.ts 的 Context 增强撞 TS2717）。
-3. **构建接线**：`tsdown.config.ts` host 段的 `typertPlugin({ mode: 'workspace',
+3. **构建接线**：`tsdown.host.config.ts` 的 `typertPlugin({ mode: 'workspace',
    faces: ['host'] })`，构建时生成 `lib/typert.host.*`（宿主侧 wire codec）与
-   `lib/typert.remote-client.*`（client 侧类型化 RPC）。
+   `lib/typert.remote-client.*`（client 侧类型化 RPC）。**build 按序跑两段**
+   （`tsdown --config tsdown.host.config.ts && tsdown --config tsdown.client.config.ts`）：
+   client 产物要内联 host 段当轮生成的契约，并行跑 = 内联上一轮旧契约；
+   `tsdown.config.ts` 只给 `pnpm dev`（watch 两段）用。
 4. **manifest**：协议包 peer（宿主供给同一实例）+ devDep **裸精确 pin**（放宽成
    范围会让 vendor 副本变成运行期候选）+ zod dependencies（生成产物 import 它）。
 
@@ -186,9 +200,24 @@ ctx.effect(() => ctx.remote.$mount(TYPERT_REMOTE), 'mount remote')
 // 之后 ctx.remote.__SERVICE_KEY__.ping() 全程类型化
 ```
 
-接之前把 `'@deepseek-ai/dsh-typert-protocol'` 加进 `tsdown.config.ts` client 段的
-`EXTERNALS`（它的运行时由宿主渲染进程模块表供给；清单外会被内联，protocol 包不在
-你的 dependencies 里，内联解析不到）。
+协议包两半边处理有意不同（勿改，依据 DSH 源码逐层核实）：
+
+- **host 半边**：协议包是 peerDependencies → `neverBundle` 外置，运行期解析到宿主同一
+  实例（`TypertRemoteService` 基类与宿主 face 装配共享同一份 protocol 类型），这是
+  「协议不重复进运行环境」设计的落地处。
+- **client 半边**：生成产物对协议包与 zod 的值导入**一律内联**（`EXTERNALS` 保持 react
+  基线，勿把协议包加进去）。渲染进程模块表种子（DSH `packages/client/web/src/platform.ts`
+  的 `PLATFORM_MODULES`）没有协议包，协议包自身也无 `dsh.client` 声明、不构成 client
+  模块行，`dsh.client.external` 请求只能落到种子或别的 client 模块行，没有供给方；外置后
+  client 的 require 会 `missed the module table`（插件 client 静默失效）。DSH 自己的
+  client 构建门（`packages/client/tsdown.client.ts` 的 `INLINE_SAFE` / `GENERATED_REMOTE`）
+  把这两层列为「no runtime identity to share」可内联，官方 client 装配
+  （`api/remotes/src/client`）自己就值导入全部 `/remote` 产物；client 侧挂载按端点字符串
+  与包名（`contribution.package`）校验，无跨副本同一性检查，多一份副本无实害。
+- **内联进 bundle 的是 npm 发布副本**（devDependencies 裸精确 pin，registry 安装），不是
+  `packages/protocol` vendor submodule：vendor 只经 `tsconfig.host.json` 的 paths 重定向
+  进入生成器 face program（构建期 codegen），无 `lib/` 产物、不进任何 bundle，
+  `protocol-vendor.spec` 机械守护这条隔离。
 <!--#endif-->
 
 ## 下一步

@@ -3,6 +3,43 @@
 本仓所有显著变更记录于此。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（0.x 阶段 minor 允许破坏性变更）。
 
+## [0.4.2] - 2026-11-18
+
+### 修正
+
+- full 形态构建拆成 host / client 两段按序跑。此前模板是单一 `tsdown.config.ts` 数组
+  配置，两段并行：client 产物要内联 host 段**当轮**生成的 `lib/typert.remote-client.js`
+  （typertPlugin 在 host 段构建时生成 wire 契约），并行跑会让 client 内联上一轮的旧
+  契约（`src/remote.ts` 方法增删后客户端与宿主对不上），fresh clone 时甚至解析不到该文件
+- 生成结构变化：full 插件包从单 `tsdown.config.ts` 变为三份
+  （`tsdown.host.config.ts` / `tsdown.client.config.ts` / `tsdown.config.ts` 仅作 dev
+  watch 组合，两段并行，交付构建勿用）；插件包 build 与 prepare 按序跑两段
+  （prepare = `pnpm run build && node ../../scripts/sync-pack-docs.mjs`）。host / client
+  形态不变（仍单配置），add 追加插件按形态取用
+- 文档同步：README（开发说明 / 结构树 / 依赖纪律 / typert 构建接线）、生成项目 AGENTS.md
+  模板（红线新增「构建顺序：host 段先、client 段后」，协议包口径的引用改指
+  `tsdown.client.config.ts`）、SKILL.md（构建顺序 + 存量仓拆分指引）。实测参照：
+  dsh-notify 已按此形态运行（2026-11-17 清空 lib/ 从零构建验证过）
+
+## [0.4.1] - 2026-11-18
+
+### 修正
+
+- 删除 full 形态 README「client 侧消费」里「把 `@deepseek-ai/dsh-typert-protocol` 加进
+  client 段 `EXTERNALS`」的错误指引：渲染进程模块表种子（DSH `packages/client/web/src/
+  platform.ts` 的 `PLATFORM_MODULES`）没有协议包，协议包也无 client 模块行，
+  `dsh.client.external` 请求只能落到种子或别的 client 模块行，外置后 client 的 require
+  会 `missed the module table`（插件 client 静默失效）。「内联解析不到」的预期也被协议包
+  devDep 裸精确 pin 掩盖（构建期解析得到，静默内联成功）
+- 正确口径沉淀进四处，生成的项目开箱自带依据：README（协议包两半边不对称：host 外置 /
+  client 内联，内联的是 npm 发布副本而非 vendor submodule）、生成项目 AGENTS.md 模板
+  （形态速记新增一条 + typert 纪律红线补 client 半边口径）、SKILL.md（typert 纪律）、
+  `tsdown/full.ts.tpl` client 段注释。依据：DSH `packages/client/tsdown.client.ts` 的
+  `INLINE_SAFE` / `GENERATED_REMOTE`（no runtime identity to share）与官方 client 装配
+  `api/remotes/src/client` 的实践；实证：dsh-notify / dsh-ledger / dsh-pilot /
+  luna-dsh-memory 四个 full 插件 client 产物逐一同构（协议包与 zod 内联、react 外置、
+  自挂载）
+
 ## [0.4.0] - 2026-11-16
 
 ### 新增

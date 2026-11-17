@@ -124,11 +124,18 @@ export function buildPluginPlan(type: PluginType, pluginId: string, layout: 'wor
     { from: 'client/src/client/index.tsx.tpl', to: at('src/client/index.tsx') },
     { from: 'client/tests/client-boundary.spec.ts.tpl', to: at('tests/client-boundary.spec.ts') },
   ]
-  const tsdown: RenderFile = type === 'host'
-    ? { from: 'tsdown/host.ts.tpl', to: at('tsdown.config.ts') }
+  // full：两段构建拆三份配置（host 段先生成 wire 契约、client 段后内联、组合文件只给
+  // dev watch）。交付 build 按序跑两段（package.json 的 build 脚本），并行跑 = client
+  // 内联上一轮旧契约，fresh clone 甚至解析不到该文件。
+  const tsdown: RenderFile[] = type === 'host'
+    ? [{ from: 'tsdown/host.ts.tpl', to: at('tsdown.config.ts') }]
     : type === 'client'
-      ? { from: 'tsdown/client.ts.tpl', to: at('tsdown.config.ts') }
-      : { from: 'tsdown/full.ts.tpl', to: at('tsdown.config.ts') }
+      ? [{ from: 'tsdown/client.ts.tpl', to: at('tsdown.config.ts') }]
+      : [
+          { from: 'tsdown/full.host.ts.tpl', to: at('tsdown.host.config.ts') },
+          { from: 'tsdown/full.client.ts.tpl', to: at('tsdown.client.config.ts') },
+          { from: 'tsdown/full.ts.tpl', to: at('tsdown.config.ts') },
+        ]
   // bundle 形态守卫：host 用纯 host 变体；client / full 多一条 dsh.client 断言
   const bundleShape: RenderFile = type === 'host'
     ? { from: 'host/tests/bundle-shape.spec.ts.tpl', to: at('tests/bundle-shape.spec.ts') }
@@ -146,11 +153,11 @@ export function buildPluginPlan(type: PluginType, pluginId: string, layout: 'wor
 
   switch (type) {
     case 'host':
-      return [...common, ...hostHalf, hostIndex, tsdown, bundleShape]
+      return [...common, ...hostHalf, hostIndex, ...tsdown, bundleShape]
     case 'client':
-      return [...common, clientShim, ...clientHalf, tsdown, bundleShape]
+      return [...common, clientShim, ...clientHalf, ...tsdown, bundleShape]
     case 'full':
-      return [...common, ...hostHalf, ...typert, ...clientHalf, tsdown, bundleShape]
+      return [...common, ...hostHalf, ...typert, ...clientHalf, ...tsdown, bundleShape]
   }
 }
 

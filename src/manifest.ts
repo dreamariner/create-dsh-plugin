@@ -180,13 +180,26 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
   // scripts/，经相对路径引用。preinstall 守卫（full）上移根壳：发布包的 tarball
   // 没有 scripts/，preinstall 跟包走会在安装期 MODULE_NOT_FOUND（实测踩过），且
   // 发布包本就不需要协议声明源（运行期走 npm 协议包）
-  const scripts: Record<string, string> = {
-    build: 'tsdown',
-    dev: 'tsdown --watch',
-    // pack / publish 两路都会跑 prepare：构建后从仓根同步 README/LICENSE
-    // （npm 只自动收录包目录内的这两件）
-    prepare: 'tsdown && node ../../scripts/sync-pack-docs.mjs',
-  }
+  //
+  // full 的 build 按序两段：client 产物要内联 host 段**当轮**生成的
+  // lib/typert.remote-client.js（typertPlugin 在 host 段构建时生成 wire 契约）。
+  // 并行跑会让 client 内联上一轮的旧契约（remote.ts 方法增删后客户端与宿主对不上），
+  // fresh clone 甚至解析不到该文件。host / client 形态单配置，一条命令即可。
+  const scripts: Record<string, string> = hasTypert
+    ? {
+        build: 'tsdown --config tsdown.host.config.ts && tsdown --config tsdown.client.config.ts',
+        dev: 'tsdown --watch',
+        // pack / publish 两路都会跑 prepare：构建后从仓根同步 README/LICENSE
+        // （npm 只自动收录包目录内的这两件）
+        prepare: 'pnpm run build && node ../../scripts/sync-pack-docs.mjs',
+      }
+    : {
+        build: 'tsdown',
+        dev: 'tsdown --watch',
+        // pack / publish 两路都会跑 prepare：构建后从仓根同步 README/LICENSE
+        // （npm 只自动收录包目录内的这两件）
+        prepare: 'tsdown && node ../../scripts/sync-pack-docs.mjs',
+      }
   // test / typecheck 由 workspace 根壳承载（根 vitest 与根 tsconfig 覆盖全部插件包）
 
   // typert 生成器硬性校验：files 必须显式包含它要 emit 的产物文件

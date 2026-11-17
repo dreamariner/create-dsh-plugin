@@ -45,7 +45,10 @@ const WORKSPACE_ROOT = [
  *  manifest 程序化写，不进 plan）。 */
 function expectedPluginFiles(type: PluginType): string[] {
   const common = ['tsconfig.json', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'tests/setup.ts', 'tests/import-guard.spec.ts']
-  const tsdown = ['tsdown.config.ts']
+  // full：两段构建拆三份配置（host 先生成 wire 契约 / client 后内联 / 组合仅 dev watch）
+  const tsdown = type === 'full'
+    ? ['tsdown.host.config.ts', 'tsdown.client.config.ts', 'tsdown.config.ts']
+    : ['tsdown.config.ts']
   const host = ['src/index.ts', 'src/config.ts']
   const client = ['src/client/index.tsx', 'tests/client-boundary.spec.ts']
   const typert = ['tsconfig.typert.json', 'src/remote.ts', 'tests/protocol-vendor.spec.ts', 'tests/typert-face-install.spec.ts']
@@ -160,12 +163,16 @@ describe('模板矩阵（布局按形态走）', () => {
           expect(readFileSync(join(dir, 'pnpm-workspace.yaml'), 'utf8')).toContain('packages/*')
           expect(readFileSync(join(dir, 'vitest.config.ts'), 'utf8')).toContain("include: ['packages/*/tests/**/*.spec.ts']")
           expect(readFileSync(join(dir, 'tsconfig.json'), 'utf8')).toContain('"exclude": ["packages/protocol"]')
-          expect(readFileSync(join(dir, 'packages/dsh-demo/tsdown.config.ts'), 'utf8')).toContain('typertPlugin')
+          expect(readFileSync(join(dir, 'packages/dsh-demo/tsdown.host.config.ts'), 'utf8')).toContain('typertPlugin')
+          expect(readFileSync(join(dir, 'packages/dsh-demo/tsdown.client.config.ts'), 'utf8')).toContain('EXTERNALS')
+          expect(readFileSync(join(dir, 'packages/dsh-demo/tsdown.config.ts'), 'utf8')).toContain('并行跑')
 
           const plugin = JSON.parse(readFileSync(join(dir, 'packages/dsh-demo/package.json'), 'utf8'))
           expect(plugin.name).toBe('@acme/dsh-demo')
           expect(plugin.private).toBeUndefined()
-          expect(plugin.scripts.prepare).toBe('tsdown && node ../../scripts/sync-pack-docs.mjs')
+          // full：build 按序两段（client 产物要内联 host 段当轮生成的 wire 契约）
+          expect(plugin.scripts.build).toBe('tsdown --config tsdown.host.config.ts && tsdown --config tsdown.client.config.ts')
+          expect(plugin.scripts.prepare).toBe('pnpm run build && node ../../scripts/sync-pack-docs.mjs')
           expect(plugin.scripts.test).toBeUndefined() // 测试由根壳承载
           expect(plugin.files).toContain('README.md')
           expect(plugin.dsh.bundle.patch).toBe('./cordis.patch.yml')
