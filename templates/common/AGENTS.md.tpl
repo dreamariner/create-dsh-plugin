@@ -51,7 +51,7 @@ __PACKAGE_NAME__：__DESCRIPTION__。由 create-dsh-plugin 生成的 DeepSeek Ha
 - host 半边：`src/index.ts`（manifest 三件套接线 + demo tool）与 `src/config.ts`（schemastery 配置 schema），无浏览器面。
 <!--#endif-->
 <!--#if client-->
-- client 半边：`src/client/index.tsx` 经 `dsh.client` manifest 由宿主渲染进程装载（`./client` 导出面）；`src/index.ts` 是宿主壳（空 apply，仅占 manifest 位，勿在里面写逻辑）。
+- client 半边：`src/client/index.tsx` 经 `dsh.client` manifest 由宿主渲染进程装载（`./client` 导出面）；`src/index.ts` 是宿主壳（空 apply，仅占 manifest 位，勿在里面写逻辑），由 `tsdown.host.config.ts` 构建成 `lib/index.js`，正是 manifest `main` / `exports['.']` 的指向（缺了 = 装载断链，插件静默不出现）。
 <!--#endif-->
 <!--#if full-->
 - 双端：host 半边 `src/index.ts`（tool + Config + deps 三件套）承接数据与计算；client 半边 `src/client/index.tsx` 承接界面。
@@ -68,6 +68,8 @@ __PACKAGE_NAME__：__DESCRIPTION__。由 create-dsh-plugin 生成的 DeepSeek Ha
 ## 常用命令
 
 ```sh
+# ⚠ node 要求：≥ 24.9（与 DSH 宿主对齐：DSH 官方 engines.node >=24.9.0，自 0.2.1-rc.2 起
+#   不再支持 Node 22；本仓工具链自身只要 ≥ 22.18，被 24.9 盖住）。
 pnpm install        # 首次
 pnpm build          # 构建（产物进 lib/，不入库）
 pnpm test           # 自守护栏测试
@@ -99,14 +101,19 @@ pnpm dsh:probe      # 连实例验证本插件装载且 active（pluginInventory
 - **schemastery 双声明**：peer（与宿主共享实例）+ dev（精确钉本仓 typecheck），缺一会装出两份实例。
 - **cordis 只许 `import type { Context }`**：dev 钉版仅服务 typecheck。值导入前必须先把 cordis 升进 peerDependencies，否则 alwaysBundle 会把它内联进产物，运行期出现第二份 cordis 实例（作用域与注册表不跨副本共享，插件静默失灵；教训源自早期插件仓的实测事故（2026-10-22）），导入护栏会拦。
 <!--#endif-->
-<!--#if full-->
-- **typert 纪律**：face 方法只声明在 `src/remote.ts`；协议包 devDep 必须裸精确版本（放宽会让 vendor 副本成为合法候选）；zod 必须留在 dependencies（生成产物 import 它）；client 半边勿把协议包加进 `EXTERNALS`（内联是唯一可行形态，依据见 `tsdown.client.config.ts` 注释）。
-- **构建顺序：host 段先、client 段后**：client 产物要内联 host 段**当轮**生成的
-  `lib/typert.remote-client.js`（自有子路径不在浏览器模块表里，不能外置）。合成一个
-  tsdown 配置时两段并行跑，client 会内联**上一轮**的旧契约（方法增删后客户端与宿主
-  对不上），fresh clone 时甚至解析不到该文件。故 build 脚本按序跑两条：
+<!--#if client|full-->
+- **构建顺序：host 段先、client 段后**：build 脚本按序跑两条
   `tsdown --config tsdown.host.config.ts && tsdown --config tsdown.client.config.ts`；
   `tsdown.config.ts` 只给 `pnpm dev`（watch 两段）用。
+<!--#if full-->
+  full 的 client 产物还要内联 host 段**当轮**生成的
+  `lib/typert.remote-client.js`（自有子路径不在浏览器模块表里，不能外置）。合成一个
+  tsdown 配置时两段并行跑，client 会内联**上一轮**的旧契约（方法增删后客户端与宿主
+  对不上），fresh clone 时甚至解析不到该文件。
+<!--#endif-->
+<!--#endif-->
+<!--#if full-->
+- **typert 纪律**：face 方法只声明在 `src/remote.ts`；协议包 devDep 必须裸精确版本（放宽会让 vendor 副本成为合法候选）；zod 必须留在 dependencies（生成产物 import 它）；client 半边勿把协议包加进 `EXTERNALS`（内联是唯一可行形态，依据见 `tsdown.client.config.ts` 注释）。
 <!--#endif-->
 - **实例固定经 `pnpm dsh:start` 启动**：打包版要带 `--inspect` 才有 inspector，Dock 直启的实例 stop / restart 管不了；启动前构建门失败会阻断（lib 不入库，没有旧产物可跑）。
 - **行文不用破折号「——」**（zero 知识库行文规范，2026-11-01 起）。

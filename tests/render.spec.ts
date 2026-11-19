@@ -8,12 +8,19 @@ import { describe, expect, it } from 'vitest'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { buildPlan, buildPluginPlan, buildRootPlan, renderPluginPackage, renderProject, substitutionsOf } from '../src/render.ts'
+import { buildPlan, buildPluginPlan, buildRootPlan, PLACEHOLDERS, renderPluginPackage, renderProject, substitutionsOf } from '../src/render.ts'
 import { buildManifests, buildPackageManifest, layoutOf, DSH_VERSION } from '../src/manifest.ts'
 import { wireHostFaceConfig } from '../src/finalize.ts'
 import type { PluginType, ScaffoldOptions } from '../src/types.ts'
 
 const TYPES: PluginType[] = ['host', 'client', 'full']
+
+/** 产物里残留的双下划线 token：只允许 DSH 的 __ModuleLoader__（浏览器模块表加载器，
+ *  不是占位符）。用通用形状扫：名单之外的漏网占位符也抓得到（旧写法只查名单内的
+ *  13 个，漏改替换正则时产物里会留着一个没被替换的 `__X__` 而测试照样绿）。 */
+function residualPlaceholders(text: string): string[] {
+  return [...text.matchAll(/__[A-Za-z0-9_]+__/g)].map((m) => m[0]).filter((t) => t !== '__ModuleLoader__')
+}
 
 function fakeOpts(type: PluginType, over: Partial<ScaffoldOptions> = {}): ScaffoldOptions {
   return {
@@ -45,10 +52,10 @@ const WORKSPACE_ROOT = [
  *  manifest 程序化写，不进 plan）。 */
 function expectedPluginFiles(type: PluginType): string[] {
   const common = ['tsconfig.json', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'tests/setup.ts', 'tests/import-guard.spec.ts']
-  // full：两段构建拆三份配置（host 先生成 wire 契约 / client 后内联 / 组合仅 dev watch）
-  const tsdown = type === 'full'
-    ? ['tsdown.host.config.ts', 'tsdown.client.config.ts', 'tsdown.config.ts']
-    : ['tsdown.config.ts']
+  // 有 client 半边（client / full）：两段构建拆三份配置（host 段 / client 段 / 组合仅 dev watch）
+  const tsdown = type === 'host'
+    ? ['tsdown.config.ts']
+    : ['tsdown.host.config.ts', 'tsdown.client.config.ts', 'tsdown.config.ts']
   const host = ['src/index.ts', 'src/config.ts']
   const client = ['src/client/index.tsx', 'tests/client-boundary.spec.ts']
   const typert = ['tsconfig.typert.json', 'src/remote.ts', 'tests/protocol-vendor.spec.ts', 'tests/typert-face-install.spec.ts']
@@ -89,7 +96,7 @@ describe('模板矩阵（布局按形态走）', () => {
         for (const rel of all) {
           if (rel.endsWith('LICENSE')) continue
           const text = readFileSync(join(dir, rel), 'utf8')
-          expect(text.match(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL|SELF_LINK_SUFFIX|PACKAGE_MANAGER|SCAFFOLD_DATE)__/), `${rel} 有占位符残留`).toBeNull()
+          expect(residualPlaceholders(text), `${rel} 有占位符残留`).toEqual([])
           expect(text.match(/<!--#if/), `${rel} 有未处理的条件块`).toBeNull()
         }
 
@@ -101,8 +108,10 @@ describe('模板矩阵（布局按形态走）', () => {
           // 根 = 插件包：名字就是包名，可发布（无 private），测试/类型检查本仓承载
           expect(manifest.name).toBe('@acme/dsh-demo')
           expect(manifest.private).toBeUndefined()
-          expect(manifest.scripts.build).toBe('tsdown')
-          expect(manifest.scripts.prepare).toBe('tsdown') // 根=包，README/LICENSE 由 npm 自动收录
+          expect(manifest.scripts.build).toBe(type === 'host'
+            ? 'tsdown'
+            : 'tsdown --config tsdown.host.config.ts && tsdown --config tsdown.client.config.ts')
+          expect(manifest.scripts.prepare).toBe(manifest.scripts.build) // 根=包：构建即发布产物
           expect(manifest.scripts.test).toBe('vitest run')
           expect(manifest.scripts.typecheck).toBe('tsc --noEmit -p tsconfig.json')
           expect(manifest.scripts['dev:hmr']).toBe(type === 'host' ? 'node scripts/dev-hmr.mjs' : undefined)
@@ -150,7 +159,10 @@ describe('模板矩阵（布局按形态走）', () => {
             expect(manifest.dsh.client.platform).toBe('web')
             expect(manifest.exports['./client']).toBe('./lib/client.js')
             expect(manifest.devDependencies['react']).toBeTypeOf('string')
-            expect(readFileSync(join(dir, 'tsdown.config.ts'), 'utf8')).toContain('EXTERNALS')
+            expect(readFileSync(join(dir, 'tsdown.client.config.ts'), 'utf8')).toContain('EXTERNALS')
+            // client 形态的宿主壳也要真构建出来（manifest main / exports['.'] 指向它）
+            expect(readFileSync(join(dir, 'tsdown.host.config.ts'), 'utf8')).toContain('hostDeps')
+            expect(readFileSync(join(dir, 'tsdown.config.ts'), 'utf8')).toContain('tsdown.host.config.ts')
           }
         } else {
           // workspace：根壳 private、脚本 -r 转发、插件 manifest 在 packages/<id>/
@@ -220,6 +232,11 @@ describe('模板矩阵（布局按形态走）', () => {
     expect(subHost.__SERVICE_KEY__).toBe('demo')
   })
 
+  it('占位符名单与 substitutionsOf 的键一一对应（加占位符只改一处，漏改即红）', () => {
+    const keys = Object.keys(substitutionsOf(fakeOpts('host'))).sort()
+    expect(keys).toEqual([...PLACEHOLDERS].map((p) => `__${p}__`).sort())
+  })
+
   it('single 布局没有项目名概念：projectName 被忽略，根名 = 包名', () => {
     const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-single-name-'))
     try {
@@ -253,6 +270,46 @@ describe('模板矩阵（布局按形态走）', () => {
     expect(readme('host')).toContain('pnpm dev:hmr')
     expect(readme('client')).not.toContain('pnpm dev:hmr')
     expect(readme('full')).not.toMatch(/<!--#if/)
+  })
+
+  it('client 半边入口注释指向 client 段构建配置（client / full 同名 tsdown.client.config.ts）', () => {
+    const clientDir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-cfg-client-'))
+    const fullDir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-cfg-full-'))
+    try {
+      renderProject(fakeOpts('client', { targetDir: clientDir }))
+      const c = readFileSync(join(clientDir, 'src/client/index.tsx'), 'utf8')
+      expect(c).toContain('tsdown.client.config.ts')
+      expect(c).not.toContain('被 tsdown.config.ts 包上')
+
+      renderProject(fakeOpts('full', { targetDir: fullDir }))
+      const f = readFileSync(join(fullDir, 'packages/dsh-demo/src/client/index.tsx'), 'utf8')
+      expect(f).toContain('tsdown.client.config.ts')
+      expect(f).not.toContain('被 tsdown.config.ts 包上')
+    } finally {
+      rmSync(clientDir, { recursive: true, force: true })
+      rmSync(fullDir, { recursive: true, force: true })
+    }
+  })
+
+  it('client 形态的宿主壳有构建入口（manifest main 指向的 lib/index.js 得真被构建）', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'create-dsh-plugin-test-client-host-'))
+    try {
+      renderProject(fakeOpts('client', { targetDir: dir }))
+      const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+      expect(manifest.main).toBe('./lib/index.js')
+      expect(manifest.exports['.']).toBe('./lib/index.js')
+      // host 段的 entry 是宿主壳源码，不是 client 半边
+      const hostCfg = readFileSync(join(dir, 'tsdown.host.config.ts'), 'utf8')
+      expect(hostCfg).toContain("entry: ['src/index.ts']")
+      expect(hostCfg).toContain("format: 'esm'")
+      expect(hostCfg).toContain("platform: 'node'")
+      // client 段的 entry 是浏览器半边
+      const clientCfg = readFileSync(join(dir, 'tsdown.client.config.ts'), 'utf8')
+      expect(clientCfg).toContain("entry: ['src/client/index.tsx']")
+      expect(clientCfg).toContain("platform: 'browser'")
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('plan 里的每个文件都真实存在（模板没断链）', () => {

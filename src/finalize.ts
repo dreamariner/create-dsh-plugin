@@ -9,7 +9,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } fr
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { layoutOf } from './manifest.ts'
-import { renderTemplateText } from './render.ts'
+import { renderTemplateText, TEMPLATES } from './render.ts'
 import type { ScaffoldOptions } from './types.ts'
 
 /** 对既有仓做 workspace 重排时，本机 DSH profile 里旧装法（link:<仓根>）的迁移记录。 */
@@ -55,6 +55,14 @@ function git(cwd: string, args: string[], opts: { stdio: 'inherit' | 'ignore' | 
   return { status: r.status, stdout: (r.stdout ?? '').toString() }
 }
 
+/** 目标目录所在 git 仓的顶层路径（不在仓内 = undefined）。 */
+function gitTopLevel(dir: string): string | undefined {
+  const r = git(dir, ['rev-parse', '--show-toplevel'], { stdio: 'pipe' })
+  if (r.status !== 0) return undefined
+  const top = r.stdout.trim()
+  return top === '' ? undefined : top
+}
+
 /** full 形态：确保 typert 协议声明源以 submodule 挂载 packages/protocol（生成器结构性要求
  *  该路径）。已在位则幂等跳过；git 环境可用就自动挂；不行则返回 failed（打印手动命令）。 */
 function ensureProtocolSubmodule(dir: string, url: string): 'added' | 'failed' {
@@ -62,6 +70,17 @@ function ensureProtocolSubmodule(dir: string, url: string): 'added' | 'failed' {
   if (git(dir, ['rev-parse', '--is-inside-work-tree']).status !== 0) {
     console.error('[create-dsh-plugin] 未在 git 仓库中，无法自动挂载协议声明源 submodule（见下方手动命令）')
     return 'failed'
+  }
+  // 目标目录落在别的 git 仓内时（本仓被跳过 git init），submodule 会登记到**外层仓**：
+  // 声明源指针进了别人的仓，本项目自己反而不带指针。挂之前先把这件事说清楚。
+  const top = gitTopLevel(dir)
+  if (top !== undefined) {
+    let same = false
+    try { same = realpathSync(top) === realpathSync(dir) } catch { same = false }
+    if (!same) {
+      console.error(`[create-dsh-plugin] ⚠ 目标目录落在另一个 git 仓内（顶层：${top}）：协议声明源 submodule 会登记到外层仓，不是本项目。`)
+      console.error('[create-dsh-plugin]   要让本项目自成一个仓：把它移到仓外再生成，或手工在正确的位置挂载 submodule。')
+    }
   }
   const r = git(dir, ['submodule', 'add', '-b', 'main', url, 'packages/protocol'], { stdio: 'inherit' })
   if (r.status !== 0) {
@@ -82,7 +101,7 @@ export function wireHostFaceConfig(dir: string, pluginId: string, type: Scaffold
   if (!existsSync(hostPath)) {
     // 仓库此前没有 full 插件：按模板现生成（references = protocol + 本插件）
     writeFileSync(hostPath, renderTemplateText(
-      join(import.meta.dirname, '..', 'templates', 'full', 'tsconfig.host.json.tpl'),
+      join(TEMPLATES, 'full', 'tsconfig.host.json.tpl'),
       'full',
       { __PLUGIN_ID__: pluginId },
     ))
@@ -242,9 +261,14 @@ export function finalize(
   return result
 }
 
-/** 相对当前 cwd 的显示路径（同 cwd 下短显示，跨目录显示绝对路径）。 */
+/** 相对当前 cwd 的显示路径（同 cwd 下短显示，跨目录显示绝对路径）。
+ *  ⚠ 目标目录 = cwd 时必须返回 '.'：返回空串会让 add 模式的输出出现「（仓根：）」与
+ *  一条空掉的 `cd` 指令（add 缺省目标就是 cwd）。前缀判断按目录分隔符收口，
+ *  免得 /tmp/cwd-2 这类同前缀的兄弟目录被当成子目录。 */
 export function displayPath(dir: string): string {
-  return dir.startsWith(process.cwd()) ? dir.slice(process.cwd().length + 1) : dir
+  const cwd = process.cwd()
+  if (dir === cwd) return '.'
+  return dir.startsWith(`${cwd}/`) ? dir.slice(cwd.length + 1) : dir
 }
 
 export function printNextSteps(opts: ScaffoldOptions, result: FinalizeResult, wasNonEmpty = false): void {
@@ -281,10 +305,12 @@ export function printNextSteps(opts: ScaffoldOptions, result: FinalizeResult, wa
     `  pnpm --filter ${opts.packageName} publish   # prepare 同步 README/LICENSE 并构建 lib/`,
   )
   if (opts.type === 'full' && result.protocolSubmodule !== 'added') {
+    // 手动命令回显实际用的 URL：用户给了 --protocol-url 时，打印内置默认会让补救动作
+    // 指向另一个仓（挂错声明源 = 生成器编出错的 wire 契约）
     lines.push(
       '',
       '⚠ 协议声明源 submodule（packages/protocol）未挂载，typert codegen 依赖它。进入项目目录手动补挂：',
-      `  git submodule add -b main ${PROTOCOL_REPO_URL} packages/protocol`,
+      `  git submodule add -b main ${opts.protocolUrl ?? PROTOCOL_REPO_URL} packages/protocol`,
     )
   }
   if (result.migration.ran) {

@@ -8,7 +8,7 @@
 //   所以本模板对服务取用一律「取不到就明确抛错」，宁可装载失败也不要静默。
 //
 // 本 demo：① 注册一个无副作用的示例 tool（Agent 能力面）② 挂载 Typert Remote
-// （client 数据通道，契约见 src/remote.ts，codegen 由 tsdown.config.ts 的
+// （client 数据通道，契约见 src/remote.ts，codegen 由 tsdown.host.config.ts 的
 // typertPlugin 驱动）。
 
 import type { Context } from '@deepseek-ai/cordis'

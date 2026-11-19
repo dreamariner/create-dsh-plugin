@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { migrateRootLinkInstalls, printNextSteps } from '../src/finalize.ts'
+import { displayPath, migrateRootLinkInstalls, printNextSteps } from '../src/finalize.ts'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -35,6 +35,37 @@ const RESULT = {
   installed: true, gitInited: false, protocolSubmodule: 'added' as const,
   hostFace: 'skipped' as const, migration: { ran: false, migrated: [], errors: [] },
 }
+
+describe('displayPath', () => {
+  it('目标目录 = cwd：返回 .（不是空串，否则 add 输出出现「（仓根：）」与空掉的 cd）', () => {
+    expect(displayPath(process.cwd())).toBe('.')
+  })
+
+  it('cwd 的子目录：返回相对路径', () => {
+    expect(displayPath(`${process.cwd()}/packages/dsh-demo`)).toBe('packages/dsh-demo')
+  })
+
+  it('同前缀的兄弟目录：返回绝对路径（不误判成子目录）', () => {
+    expect(displayPath(`${process.cwd()}-other`)).toBe(`${process.cwd()}-other`)
+  })
+})
+
+describe('printNextSteps 协议声明源补挂指引', () => {
+  it('未挂载时回显实际用的 URL（用户给了 --protocol-url 就不是内置默认）', () => {
+    const out = capture(() => printNextSteps(opts({ type: 'full', protocolUrl: 'git@example.com:me/dsh-typert-protocol.git' }), {
+      ...RESULT, protocolSubmodule: 'failed',
+    }))
+    expect(out).toContain('git@example.com:me/dsh-typert-protocol.git')
+    expect(out).not.toContain('git@github.com:dreamariner/dsh-typert-protocol.git')
+  })
+
+  it('没给 --protocol-url 时回显内置默认', () => {
+    const out = capture(() => printNextSteps(opts({ type: 'full' }), {
+      ...RESULT, protocolSubmodule: 'failed',
+    }))
+    expect(out).toContain('git@github.com:dreamariner/dsh-typert-protocol.git')
+  })
+})
 
 describe('printNextSteps 重排迁移报告', () => {
   it('有迁移记录 → 报告 from → to 与重启提醒', () => {

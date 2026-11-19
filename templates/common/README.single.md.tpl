@@ -42,7 +42,13 @@ pnpm dsh:probe      # 连实例验证本插件装载且 active
 实例没有 inspector，stop / restart 管不了。环境变量：`DSH_HOME` / `DSH_PROFILE` /
 `DSH_LOG` / `DSH_DESKTOP_APP` / `DSH_DESKTOP_FORM`（=dev 需 `DSH_CHECKOUT`）。
 
+⚠ 这组命令走主进程 inspector 通道（全局 `WebSocket`）→ 要 **node ≥ 22**；node 20 上
+`dsh:status` / `dsh:start` 会直接报「需 node ≥ 22」。其余命令 node ≥ 20 即可。
+
 ## 开发
+
+> node ≥ **24.9**（与 DSH 宿主对齐：DSH 官方 `engines.node: >=24.9.0`，自 0.2.1-rc.2 起
+> 不再支持 Node 22；本仓工具链自身只要 ≥ 22.18，被 24.9 盖住）。
 
 ```sh
 pnpm install
@@ -61,6 +67,10 @@ pnpm build         # 单次构建
 <!--#if client-->
 - **client 半边免接线**：DSH 的 client-hmr 自动盯着 `lib/client.js`，重建即热替换，
   不需要（也不应该）把它加进 hmr root。
+- **pnpm build（按序两段）**：`tsdown --config tsdown.host.config.ts && tsdown --config
+  tsdown.client.config.ts`。host 段先出 `lib/index.js`（= manifest `main` / `exports['.']`
+  的指向，缺了 = 装载断链，插件静默不出现），client 段后出 `lib/client.js`。
+  `tsdown.config.ts` 是 dev watch 组合（两段并行），交付构建走上面的按序命令。
 <!--#endif-->
 
 ## 发布
@@ -75,7 +85,7 @@ pnpm publish   # prepare 自动构建 lib/ 再打包；scoped 包已配 access=p
 ## 结构
 
 ```
-src/index.ts        宿主半边入口（apply + inject + Config）
+src/index.ts        <!--#if host-->宿主半边入口（apply + inject + Config）<!--#endif--><!--#if client-->宿主壳（空 apply，只占插件行位置；勿在里面写逻辑）<!--#endif-->
 <!--#if host-->src/config.ts       配置 schema（schemastery，peer 共享宿主实例）
 <!--#endif--><!--#if client-->src/client/index.tsx 浏览器半边入口（槽位注册，React）
 <!--#endif-->cordis.patch.yml    自挂载 bundle patch
@@ -83,18 +93,22 @@ locale/*.json       展示元数据（meta.title / meta.description）
 icon.svg            插件图标（≤ 256 KiB）
 tests/              bundle 形态守卫 / client 边界护栏 / 自身用例
 scripts/lib/manifest-deps.mjs  依赖策略单一来源（不变式 I1/I2，tsdown 配置引用）
+<!--#if client-->tsdown.host.config.ts  host 段构建（src/index.ts → lib/index.js，装载入口）
+tsdown.client.config.ts client 段构建（src/client/index.tsx → lib/client.js）
+tsdown.config.ts        dev watch 组合（两段）
+<!--#endif-->
 ```
 
 ## 依赖纪律（不变式，改动前必读）
 
-名单只写在 `package.json` 一处，`tsdown.config.ts` 从它派生：
+名单只写在 `package.json` 一处，`tsdown.host.config.ts` 从它派生：
 
 - `peerDependencies`（schemastery 等）＝宿主供给同一实例 → 构建外置；
 - `dependencies` ＝插件自带 → 构建内联；
 - `devDependencies` ＝只许 `import type`（类型源，dev 精确钉版本）。
 
-<!--#if client|client-->
-client 半边的模块表请求（react 系）由宿主渲染进程供给，清单在 `tsdown.config.ts`
+<!--#if client-->
+client 半边的模块表请求（react 系）由宿主渲染进程供给，清单在 `tsdown.client.config.ts`
 的 `EXTERNALS`，**不能**从 manifest 派生（那是宿主契约不是依赖声明）。
 <!--#endif-->
 

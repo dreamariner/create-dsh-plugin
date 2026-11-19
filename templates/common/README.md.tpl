@@ -54,7 +54,13 @@ pnpm dsh:probe      # 连实例验证本插件装载且 active
 实例没有 inspector，stop / restart 管不了。环境变量：`DSH_HOME` / `DSH_PROFILE` /
 `DSH_LOG` / `DSH_DESKTOP_APP` / `DSH_DESKTOP_FORM`（=dev 需 `DSH_CHECKOUT`）。
 
+⚠ 这组命令走主进程 inspector 通道（全局 `WebSocket`）→ 要 **node ≥ 22**；node 20 上
+`dsh:status` / `dsh:start` 会直接报「需 node ≥ 22」。其余命令 node ≥ 20 即可。
+
 ## 开发
+
+> node ≥ **24.9**（与 DSH 宿主对齐：DSH 官方 `engines.node: >=24.9.0`，自 0.2.1-rc.2 起
+> 不再支持 Node 22；本仓工具链自身只要 ≥ 22.18，被 24.9 盖住）。
 
 ```sh
 pnpm install
@@ -132,15 +138,16 @@ packages/protocol/  协议声明源 submodule（dreamariner/dsh-typert-protocol�
 
 ## 依赖纪律（不变式，改动前必读）
 
-名单只写在 `package.json` 一处，tsdown 配置从它派生（host / client 单配置 =
-`tsdown.config.ts`；full 双段 = `tsdown.host.config.ts` + `tsdown.client.config.ts`）：
+名单只写在 `package.json` 一处，tsdown 配置从它派生（host 单配置 =
+`tsdown.config.ts`；client / full 双段 = `tsdown.host.config.ts` +
+`tsdown.client.config.ts`）：
 
 - `peerDependencies`（schemastery<!--#if full-->、dsh-typert-protocol<!--#endif-->）＝宿主供给同一实例 → 构建外置；
 - `dependencies`（<!--#if full-->zod、<!--#endif-->若有）＝插件自带 → 构建内联；
 - `devDependencies` ＝只许 `import type`（类型源，dev 精确钉版本）。
 
 client 半边的模块表请求（react 系）由宿主渲染进程供给，清单在 client 构建配置的
-`EXTERNALS`（host / client 形态 = `tsdown.config.ts`；full = `tsdown.client.config.ts`），
+`EXTERNALS`（client 半边 = `tsdown.client.config.ts`），
 **不能**从 manifest 派生（那是宿主契约不是依赖声明）。
 
 <!--#if full-->

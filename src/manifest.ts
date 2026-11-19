@@ -181,11 +181,15 @@ export function buildPackageManifest(input: ManifestInput): Record<string, unkno
   // 没有 scripts/，preinstall 跟包走会在安装期 MODULE_NOT_FOUND（实测踩过），且
   // 发布包本就不需要协议声明源（运行期走 npm 协议包）
   //
-  // full 的 build 按序两段：client 产物要内联 host 段**当轮**生成的
-  // lib/typert.remote-client.js（typertPlugin 在 host 段构建时生成 wire 契约）。
-  // 并行跑会让 client 内联上一轮的旧契约（remote.ts 方法增删后客户端与宿主对不上），
-  // fresh clone 甚至解析不到该文件。host / client 形态单配置，一条命令即可。
-  const scripts: Record<string, string> = hasTypert
+  // 有 client 半边的形态（client / full）：build 按序两段
+  //   （tsdown --config tsdown.host.config.ts && tsdown --config tsdown.client.config.ts）
+  //   · full：client 段要内联 host 段**当轮**生成的 lib/typert.remote-client.js
+  //     （typertPlugin 在 host 段构建时生成 wire 契约）→ 并行跑 = client 内联上一轮的
+  //     旧契约（remote.ts 方法增删后客户端与宿主对不上），fresh clone 甚至解析不到
+  //   · client：两段互不依赖，但同样按序跑，交付产物确定
+  // 只有 host 半边：单配置一条命令。
+  // tsdown.config.ts（两段组合）只给 `pnpm dev` 的 watch 用。
+  const scripts: Record<string, string> = hasClient
     ? {
         build: 'tsdown --config tsdown.host.config.ts && tsdown --config tsdown.client.config.ts',
         dev: 'tsdown --watch',
@@ -259,7 +263,7 @@ export function buildSingleManifest(input: ManifestInput): Record<string, unknow
       ...base.scripts,
       // hmr 原是 workspace 根壳的脚本，single 布局下由本包承载
       ...(input.type === 'host' ? { 'dev:hmr': 'node scripts/dev-hmr.mjs' } : {}),
-      prepare: 'tsdown', // 根 = 包：README / LICENSE 由 npm 自动收录，无需同步
+      prepare: base.scripts.build, // 根 = 包：构建即发布产物（README / LICENSE 由 npm 自动收录）
       'profile:add': 'node scripts/profile-add.mjs',
       // DSH 实例管理（同 workspace 根壳）
       'dsh:start': 'node scripts/dsh-ctl.mjs start',

@@ -61,7 +61,7 @@ workspace 布局不是 full 的权宜：typert 生成器结构性要求被分析
 
 - **pnpm workspace**：`packageManager` 固定 pnpm@11.7.0，根壳 `prepare` 递归构建全部插件包
   （lib/ 构建产物不入库；本地安装走生成项目自带 profile:add 装前构建，见生成项目 README 的安装节）
-- **发布自包含**：prepublishOnly 把仓根 README / LICENSE 同步进包目录（npm 只自动
+- **发布自包含**：prepare 把仓根 README / LICENSE 同步进包目录（npm 只自动
   收录包目录内的这两件），产物 gitignore 保持仓根单真源
 - **typert codegen 全链路（full）**：`packages/protocol` submodule（协议声明源）+
   `tsconfig.host.json` 聚合（registration + paths 重定向）+ 插件级 `tsconfig.typert.json`
@@ -105,6 +105,10 @@ pnpm test        # 自测（参数解析 + 三类型模板矩阵 + add 根接线
 pnpm typecheck
 pnpm build       # 单文件 bin（lib/index.js，shebang 保留 + 依赖全量内联）
 ```
+
+> 开发本仓要 **node ≥ 24.9**（与 DSH 宿主对齐：DSH 官方 `engines.node: >=24.9.0`，自
+> 0.2.1-rc.2 起不再支持 Node 22）。本仓工具链自身只要 ≥ 22.18（vitest 5 / tsdown 0.22
+> 的 engines），被 24.9 盖住；跑已发布的包本体（`npx`）node ≥ 20 即可。
 
 本地试跑：`node lib/index.js <name> --type <t> --dir <dir> --no-install --no-git`；
 追加试跑：`node lib/index.js add <name> --type <t> --no-install --no-git`（在生成仓根执行）。

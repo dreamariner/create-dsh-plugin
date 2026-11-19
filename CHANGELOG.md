@@ -3,7 +3,88 @@
 本仓所有显著变更记录于此。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（0.x 阶段 minor 允许破坏性变更）。
 
+## [0.5.0] - 2026-11-19
+
+> 本版是自 0.3.2（npm 上最后一个发布版）之后的第一个发布版。0.4.0 / 0.4.1 / 0.4.2
+> 只存在于 git，从未发布到 npm，其内容并入本版。
+
+### 新增
+
+- **DSH 实例管理上浮为标准能力**（原 0.4.0）：`dsh-ctl.mjs` 升级为「机制 + 门 + 可测试
+  导出面」三合一：isMain 双形态（护栏测试可 import）、仓根 `.env` 自动加载（真实环境变量
+  优先，.env 只补缺）、版本门（根 manifest 的 `dshVersion` 对账官方打包版
+  `CFBundleShortVersionString`，不符拒启，`DSH_ALLOW_VERSION_MISMATCH=1` 越过）、
+  在飞回合守卫（`DSH_INFLIGHT_GUARD=1`，stop / restart 前扫 2 小时内活跃会话）、
+  `status --json` 与 `record` 子命令。根 manifest 发射 `dshVersion` 字段作为对账源
+- **full 形态构建拆 host / client 两段按序跑**（原 0.4.2）：生成结构从单
+  `tsdown.config.ts` 变为三份（`tsdown.host.config.ts` / `tsdown.client.config.ts` /
+  `tsdown.config.ts` 只作 dev watch 组合），插件包 build 与 prepare 按序跑两段。
+  原因：client 产物要内联 host 段**当轮**生成的 `lib/typert.remote-client.js`，并行跑会
+  内联上一轮的旧 wire 契约（fresh clone 时甚至解析不到该文件）。host / client 形态不变
+
+### 修正
+
+- **协议包两半边口径定案**（原 0.4.1）：删掉 full 形态 README 里「client 侧要把
+  `@deepseek-ai/dsh-typert-protocol` 加进 `EXTERNALS`」的错误指引（渲染进程模块表种子
+  没有协议包，外置后 client 的 require 会 `missed the module table`，插件 client 静默
+  失效）。正确口径：host 外置 / client 内联，且内联的是 npm 发布副本而非 vendor
+  submodule。依据沉淀进 README、生成项目 AGENTS.md 模板、SKILL.md 与 tsdown 模板注释
+- **add 模式的仓根路径显示为空**：`displayPath` 在目标目录 = cwd 时返回空串，输出里出现
+  「（仓根：）」与一条空掉的 `cd` 指令（add 缺省目标就是 cwd）。改为返回 `.`，前缀判断
+  收紧到目录分隔符（免得 `/tmp/cwd-2` 这类同前缀兄弟目录被误判成子目录）
+- **协议声明源补挂指引用错 URL**：挂载失败时打印的手动命令写死内置默认 URL，用户传了
+  `--protocol-url` 时被忽略（挂错声明源 = 生成器编出错的 wire 契约）。改为回显实际用的 URL
+- **submodule 可能挂到外层仓**：目标目录落在别的 git 仓内时（本仓被跳过 git init），
+  `git submodule add` 会把声明源指针登记到**外层仓**。挂载前检测并明确告警
+- **生成项目里的构建配置名过期**：full 生成项目的源码注释仍指向旧的单配置
+  `tsdown.config.ts`（codegen 实际在 `tsdown.host.config.ts`、client 产物在
+  `tsdown.client.config.ts`）。按形态给准
+- **单包 README 模板条件块笔误**：`<!--#if client|client-->`（等价于 client）改回
+  `<!--#if client-->`
+- **`--help` 的 create 说明停留在布局分家之前**：仍说一律 workspace，改为按形态说明
+  （host / client 单包，full 是 workspace）
+- **仓 README 的发布钩子名过期**：`prepublishOnly` 改为实际的 `prepare`
+- **node 版本口径矛盾（三处）**：脚手架与 SKILL 都说 node ≥ 20，但①实例管理命令
+  （`pnpm dsh:*`）走主进程 inspector 通道、用全局 `WebSocket`（node 20 没有），node 20
+  上会直接报「需 node ≥ 22」；②生成项目要跟 DSH 宿主对齐：DSH 官方
+  `engines.node: >=24.9.0`（`docs/development.md` 同；自 0.2.1-rc.2 起不再支持 Node 22），
+  插件作者要在本机跑 DSH 验插件 → 实际门槛是 24.9；而生成项目自带的 vitest 5 / tsdown
+  0.22 本身只要 22.18（被 24.9 盖住）。口径改成分三层写清：生成项目开发环境 ≥ 24.9
+  （对齐 DSH 宿主）；跑已发布的包本体 ≥ 20；实例管理命令 ≥ 22（被 24.9 盖住）
+  （SKILL 前置条件、脚手架 README、生成项目 README 与 AGENTS.md 模板同步）
+- **占位符名单三处各写一份**：替换正则、`substitutionsOf` 的键、测试的残留断言各有一份
+  手写名单。加占位符时若漏改替换正则，`__X__` 会原样留在生成文件里，而测试的残留断言
+  用的也是另一份名单、同样不含它 → 两条防线同时漏，坏东西静默出厂。改为抽一份常量
+  `PLACEHOLDERS`（替换正则与测试都从它派生），并把残留断言换成通用形状扫描
+  （只放行 DSH 的 `__ModuleLoader__`），名单外的漏网占位符也抓得到
+- **client 形态的宿主半边从来没被构建（client 插件装不进 profile）**：manifest 的 `main` /
+  `exports['.']` 都指向 `./lib/index.js`，但 client 形态只构建 `lib/client.js` →
+  `src/index.ts` 那个空 apply 宿主壳是**死代码**，产物根本不存在。后果：①
+  `pnpm profile:add` 的产物自检直接失败（「入口产物缺失：.../lib/index.js」）→ client
+  插件**装不进任何 profile**；②发布到 npm 的包入口指向不存在的文件，bundle patch 的
+  插件行解析不到 → 装载断链（插件静默不出现）。官方 decoration 模板同时发布 index.js
+  （宿主壳）与 client.js（浏览器半边），本仓与它对齐：client 形态也拆两段构建
+  （`tsdown.host.config.ts` 出 `lib/index.js`，`tsdown.client.config.ts` 出
+  `lib/client.js`，`tsdown.config.ts` 只给 `pnpm dev` 的 watch），build 与 prepare 按序
+  跑两段，`src/index.ts` 不再是死代码。三形态的配置结构就此统一：host 单配置，
+  client / full 双段 + 组合
+- **node 20.0–20.10 上脚手架自身会崩**：模板定位用了 `import.meta.dirname`（node ≥ 20.11
+  才有，engines 声明的却是 >=20），`add(full)` 追加到还没有 `tsconfig.host.json` 的仓时
+  取路径直接抛 TypeError。改为用 `import.meta.url` 定位模板目录（与渲染层共用同一份
+  路径解析），engines 维持 `>=20`
+- **脚手架自身的构建用了已废弃的 tsdown API**：`noExternal` 自 tsdown 0.22 起打 WARN、
+  未来大版本会移除。改为 `deps.alwaysBundle`（语义等价：全量内联，产物零裸 import）
+
+### 变更
+
+- DSH 版本锚 `0.2.2-rc.2` → `0.2.2-rc.5`（`src/manifest.ts` 的 `DSH_VERSION`）：生成物
+  peer 范围、`engines.dsh`、typert 生成器 / 协议包 dev 精确钉随动；schemastery 3.19.0 /
+  cordis 4.1.0 不变
+- SKILL.md 的行为版本口径同步（0.4.x 未发布，行为版本按 0.5.0 记）
+
 ## [0.4.2] - 2026-11-18
+
+> 此版本未发布到 npm（只存在于 git），其内容随 0.5.0 一起交付。
 
 ### 修正
 
@@ -23,6 +104,8 @@
 
 ## [0.4.1] - 2026-11-18
 
+> 此版本未发布到 npm（只存在于 git），其内容随 0.5.0 一起交付。
+
 ### 修正
 
 - 删除 full 形态 README「client 侧消费」里「把 `@deepseek-ai/dsh-typert-protocol` 加进
@@ -41,6 +124,8 @@
   自挂载）
 
 ## [0.4.0] - 2026-11-16
+
+> 此版本未发布到 npm（只存在于 git），其内容随 0.5.0 一起交付。
 
 ### 新增
 
@@ -154,8 +239,13 @@
 - 根 tsconfig 收编全部插件包 tests（测试也进类型检查）
 - 生成物 manifest 的 exports 补展示元数据导出面（`./locale/*.json` 与 `./icon`）
 
-[0.4.0]: https://github.com/dreamariner/create-dsh-plugin/compare/0.3.1...0.4.0
-[0.3.1]: https://github.com/dreamariner/create-dsh-plugin/compare/0.3.0...0.3.1
+[0.5.0]: https://github.com/dreamariner/create-dsh-plugin/compare/0.3.2...0.5.0
+[0.4.2]: https://github.com/dreamariner/create-dsh-plugin/compare/7282b5e...e2c3a19
+[0.4.1]: https://github.com/dreamariner/create-dsh-plugin/compare/7282b5e...e2c3a19
+[0.4.0]: https://github.com/dreamariner/create-dsh-plugin/compare/0.3.2...7282b5e
+[0.3.2]: https://github.com/dreamariner/create-dsh-plugin/compare/0.3.0...daec4f6
+[0.3.1]: https://github.com/dreamariner/create-dsh-plugin/compare/0.3.0...4db4f3a
 [0.3.0]: https://github.com/dreamariner/create-dsh-plugin/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/dreamariner/create-dsh-plugin/compare/0.1.1...0.2.0
 [0.1.1]: https://github.com/dreamariner/create-dsh-plugin/compare/0.1.0...0.1.1
+[0.1.0]: https://github.com/dreamariner/create-dsh-plugin/releases/tag/0.1.0

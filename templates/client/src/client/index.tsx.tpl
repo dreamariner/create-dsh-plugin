@@ -1,7 +1,7 @@
 // __PACKAGE_NAME__ :: 浏览器半边入口
 //
 // 官方形态（DSH skill cordis-plugin-development 的 templates/decoration/client.js）：
-//   · 产物 lib/client.js 被 tsdown.config.ts 包上 window.__ModuleLoader__.load({...})
+//   · 产物 lib/client.js 被 tsdown.client.config.ts 包上 window.__ModuleLoader__.load({...})
 //     的 CJS 包装；factory 返回 { inject, apply } : 与 host 插件同构的 cordis 接口；
 //   · react 来自宿主渲染进程模块表（构建时 EXTERNALS 外置），不打包、不 CDN、不自装。
 //

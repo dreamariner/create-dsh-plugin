@@ -8,8 +8,9 @@ export function runHelp(): void {
   npx @dreamariner/create-dsh-plugin [add] [name] [options]
 
 子命令：
-  create（缺省）        新建插件仓（workspace：根壳 + packages/<id>/ 默认插件）
-  add                   向既有仓追加一个插件包（在仓根执行；--dir 指定仓根）
+  create（缺省）        新建插件仓。布局按形态走：host / client 单包（根即插件包），
+                        full 是 workspace（根壳 + packages/<id>/ 默认插件）
+  add                   向既有 workspace 仓追加一个插件包（在仓根执行；--dir 指定仓根）
                         full 形态自动补协议 submodule 与 tsconfig.host.json 接线
 
 参数：
@@ -36,8 +37,10 @@ export function runHelp(): void {
   -h, --help           本说明
 
 生成内容：
-  · pnpm workspace（packageManager 固定 pnpm@11.7.0）：默认一个插件包，add 可继续
-    追加任意多个，根壳脚本 pnpm -r 递归转发，加包不改根
+  · 布局按形态走：host / client 单包（根即插件包，npm / git / CLI 三条安装路一步到位）；
+    full 是 workspace（根壳 + packages/<id>/，typert 生成器结构性要求）。packageManager
+    固定 pnpm@11.7.0；workspace 仓的根壳脚本 pnpm -r 递归转发，add 可继续追加任意
+    多个，加包不改根
   · tsdown 构建：host 半边 lib/index.js（ESM），client 半边 lib/client.js（CJS + 模块表外置）
   · 自挂载 bundle（cordis.patch.yml + dsh.bundle 声明）
   · 展示元数据（locale/en.json、locale/zh.json、icon.svg，官方 checklist 要求项）

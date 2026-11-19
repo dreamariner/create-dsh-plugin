@@ -16,7 +16,16 @@ description: DeepSeek Harness（DSH）插件脚手架使用技能。当用户要
 
 ## 前置条件
 
-- node ≥ 20、pnpm（生成项目由 `packageManager` 钉版）
+- **node 版本分三层，别混**：
+  - **生成项目的开发环境：node ≥ 24.9**（与 DSH 宿主对齐）。DSH 官方
+    `engines.node: >=24.9.0`，自 0.2.1-rc.2 起不再支持 Node 22；插件作者要在本机跑
+    DSH 验插件 → 实际门槛就是这个。本仓工具链自身（vitest 5 / tsdown 0.22）只要
+    ≥ 22.18，被 24.9 盖住
+  - 跑已发布的脚手架本体（`npx @dreamariner/create-dsh-plugin`）：node ≥ 20 够（包自身
+    `engines.node: >=20`，运行期只用 `import.meta.url` 这类老 API）
+  - **实例管理命令**（`pnpm dsh:*`）：走主进程 inspector 通道，用全局 `WebSocket`
+    （node 20 没有）→ 要 node ≥ 22，被 24.9 盖住
+- pnpm（生成项目由 `packageManager` 钉版）
 - 运行方式：`npx @dreamariner/create-dsh-plugin`（npm 已发布）；本仓开发态用 `pnpm dlx <本仓路径>` 或直接 `node lib/index.js`
 
 ## 第一步：形态选型（唯一需要动脑的决策）
@@ -79,8 +88,8 @@ pnpm profile:add --npm     # 发布后：从 npm 装
 - **gitignore 锚定**：`lib/` 规则必须是 `/lib/`（单包）或 `packages/*/lib/`（workspace）。裸 `lib/` 会任意深度匹配、`git add` 时静默跳过 `scripts/lib/manifest-deps.mjs`，clone 出来的仓 build 必挂。**0.1.0 版脚手架生成的仓是裸 `lib/`，手动锚定一次**（0.1.1 起已修）
 - **发布面无 src**：`files` 与 `exports` 不带源码是收口后的口径（0.1.0 生成的仓带 src，升级后手动收一次）
 - **DSH 版本锚 `0.2.2-rc.5`**：peer 范围与 engines 锚在此，升级 DSH 时同步
-- **typert 纪律（full）**：face 方法只声明在 `src/remote.ts`；协议包 devDep 必须裸精确版本（放宽会让 vendor 副本成为合法候选）；zod 必须留在 dependencies（生成产物 import 它）；client 半边勿把协议包加进 `EXTERNALS`（内联是唯一可行形态，依据见生成项目 `tsdown.client.config.ts` 注释；2026-11-18 修正，0.4.0 及更早模板 README 的「加进 EXTERNALS」指引是错的）
-- **构建顺序（full，0.4.2 起）**：build 按序跑两段（`tsdown --config tsdown.host.config.ts && tsdown --config tsdown.client.config.ts`）：client 产物要内联 host 段当轮生成的 wire 契约，并行跑 = 内联上一轮旧契约；`tsdown.config.ts` 只给 `pnpm dev` 用。0.4.1 及更早生成的仓是单配置并行，按此拆分
+- **typert 纪律（full）**：face 方法只声明在 `src/remote.ts`；协议包 devDep 必须裸精确版本（放宽会让 vendor 副本成为合法候选）；zod 必须留在 dependencies（生成产物 import 它）；client 半边勿把协议包加进 `EXTERNALS`（内联是唯一可行形态，依据见生成项目 `tsdown.client.config.ts` 注释；2026-11-18 修正，0.5.0 之前模板 README 的「加进 EXTERNALS」指引是错的）
+- **构建顺序（full，0.5.0 起）**：build 按序跑两段（`tsdown --config tsdown.host.config.ts && tsdown --config tsdown.client.config.ts`）：client 产物要内联 host 段当轮生成的 wire 契约，并行跑 = 内联上一轮旧契约；`tsdown.config.ts` 只给 `pnpm dev` 用。0.5.0 之前生成的仓是单配置并行（0.4.x 未发布到 npm，形态同 0.3.2 及更早），按此拆分
 - **行文不用破折号「——」**（zero 知识库行文规范）
 
 ## 参考

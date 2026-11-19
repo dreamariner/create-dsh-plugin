@@ -25,7 +25,33 @@ import { camelOf, pascalOf } from './args.ts'
 import { buildManifests, buildPackageManifest, layoutOf } from './manifest.ts'
 import type { PluginType, RenderFile, ScaffoldOptions } from './types.ts'
 
-const TEMPLATES = join(dirname(fileURLToPath(import.meta.url)), '..', 'templates')
+/** 模板目录：相对本模块定位（编译产物在 lib/，模板在 ../templates/）。
+ *  ⚠ 用 import.meta.url 而不是 import.meta.dirname：后者要 node ≥ 20.11
+ *  （engines 声明的是 >=20，node 20.0–20.10 上它是 undefined，取路径直接抛 TypeError）。 */
+export const TEMPLATES = join(dirname(fileURLToPath(import.meta.url)), '..', 'templates')
+
+/** 全部占位符名（`__X__` 形式，这里只写名字）。**唯一事实源**：替换正则与测试的
+ *  残留断言都从这里派生。
+ *  为什么不能各写一份：加占位符时若只补了 substitutionsOf 的值、漏了替换正则，
+ *  那个 `__X__` 会原样留在生成的文件里，而旧写法里测试的残留断言用的是另一份
+ *  手写名单，同样不含它 → 两条防线同时漏，坏东西静默出厂。 */
+export const PLACEHOLDERS = [
+  'PROJECT_NAME',
+  'PACKAGE_NAME',
+  'PLUGIN_ID',
+  'TITLE',
+  'DESCRIPTION',
+  'PASCAL_NAME',
+  'SERVICE_KEY',
+  'PLUGIN_REL',
+  'PLUGIN_TYPE_LABEL',
+  'MANIFEST_DEPS_REL',
+  'SELF_LINK_SUFFIX',
+  'PACKAGE_MANAGER',
+  'SCAFFOLD_DATE',
+] as const
+
+const PLACEHOLDER_RE = new RegExp(`__(?:${PLACEHOLDERS.join('|')})__`, 'g')
 
 /** 模板占位符 → 生成值。layout 显式可传（缺省按类型推导）：add 往 workspace 追加
  *  host / client 插件时，文件落 packages/<id>/，占位符必须按 workspace 取值，
@@ -124,13 +150,23 @@ export function buildPluginPlan(type: PluginType, pluginId: string, layout: 'wor
     { from: 'client/src/client/index.tsx.tpl', to: at('src/client/index.tsx') },
     { from: 'client/tests/client-boundary.spec.ts.tpl', to: at('tests/client-boundary.spec.ts') },
   ]
-  // full：两段构建拆三份配置（host 段先生成 wire 契约、client 段后内联、组合文件只给
-  // dev watch）。交付 build 按序跑两段（package.json 的 build 脚本），并行跑 = client
-  // 内联上一轮旧契约，fresh clone 甚至解析不到该文件。
+  // 有 client 半边的形态（client / full）：两段构建拆三份配置
+  //   · tsdown.host.config.ts  → host 段（src/index.ts → lib/index.js，宿主装载入口；
+  //     full 形态还兼做 typert codegen，生成 wire 契约）
+  //   · tsdown.client.config.ts → client 段（src/client/index.tsx → lib/client.js）
+  //   · tsdown.config.ts        → 两段组合，只给 `pnpm dev` 的 watch 用
+  // 交付 build 按序跑两段（package.json 的 build 脚本）。
+  // ⚠ client 形态同样要 host 段：它的宿主半边是空 apply 壳，但 manifest 的 main /
+  //   exports['.'] 指向 lib/index.js，缺了 = 装载断链（插件静默不出现）+ profile:add
+  //   自检直接失败。官方 decoration 模板同样同时发布 index.js 与 client.js。
   const tsdown: RenderFile[] = type === 'host'
     ? [{ from: 'tsdown/host.ts.tpl', to: at('tsdown.config.ts') }]
     : type === 'client'
-      ? [{ from: 'tsdown/client.ts.tpl', to: at('tsdown.config.ts') }]
+      ? [
+          { from: 'tsdown/client.host.ts.tpl', to: at('tsdown.host.config.ts') },
+          { from: 'tsdown/client.client.ts.tpl', to: at('tsdown.client.config.ts') },
+          { from: 'tsdown/client.ts.tpl', to: at('tsdown.config.ts') },
+        ]
       : [
           { from: 'tsdown/full.host.ts.tpl', to: at('tsdown.host.config.ts') },
           { from: 'tsdown/full.client.ts.tpl', to: at('tsdown.client.config.ts') },
@@ -213,7 +249,8 @@ export function applyConditionalBlocks(text: string, type: PluginType, layout: '
 /** 对单份模板文本做条件块与占位符替换（layout 决定 single|workspace 条件）。 */
 export function renderTemplateText(src: string, type: PluginType, sub: Record<string, string>, layout: 'single' | 'workspace' = 'single'): string {
   const text = applyConditionalBlocks(readFileSync(src, 'utf8'), type, layout)
-  return text.replace(/__(?:PROJECT_NAME|PACKAGE_NAME|PLUGIN_ID|TITLE|DESCRIPTION|PASCAL_NAME|SERVICE_KEY|PLUGIN_REL|PLUGIN_TYPE_LABEL|MANIFEST_DEPS_REL|SELF_LINK_SUFFIX|PACKAGE_MANAGER|SCAFFOLD_DATE)__/g, (m) => sub[m] ?? m)
+  // sub 里没有的占位符原样留着（`?? m`）：残留断言会把它当残留报出来，不静默吞掉
+  return text.replace(PLACEHOLDER_RE, (m) => sub[m] ?? m)
 }
 
 /** 渲染整个项目（新建仓）：workspace 写两份 manifest；single 根 package.json 就是
