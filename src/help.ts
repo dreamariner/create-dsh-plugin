@@ -10,6 +10,8 @@ export function runHelp(): void {
 子命令：
   create（缺省）        新建插件仓。布局按形态走：host / client 单包（根即插件包），
                         full 是 workspace（根壳 + packages/<id>/ 默认插件）
+                        目标目录非空 = 跨形态重排：你现有的源码不会被模板覆盖，旧布局的
+                        内容会搬进新布局的插件包、旧路径会被清掉
   add                   向既有 workspace 仓追加一个插件包（在仓根执行；--dir 指定仓根）
                         full 形态自动补协议 submodule 与 tsconfig.host.json 接线
 

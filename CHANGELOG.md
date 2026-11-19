@@ -57,6 +57,16 @@
   用的也是另一份名单、同样不含它 → 两条防线同时漏，坏东西静默出厂。改为抽一份常量
   `PLACEHOLDERS`（替换正则与测试都从它派生），并把残留断言换成通用形状扫描
   （只放行 DSH 的 `__ModuleLoader__`），名单外的漏网占位符也抓得到
+- **跨形态重排会覆盖用户的代码，旧布局的目录还留在仓根**：`create --dir` 指向非空仓 =
+  跨形态重排。此前①渲染阶段直接拿模板盖掉用户已有的 src/ tests/ locale/ icon.svg
+  （用户写的逻辑被冲掉）；②重排后旧布局的路径（src/ tests/ locale/ icon.svg
+  cordis.patch.yml tsdown.config.ts lib/）一直躺在仓根，两套布局叠在一起，仓根那个旧
+  tsdown.config.ts 还是个隐患。改为三条纪律：①重排模式下用户可编辑的内容面**不覆盖**
+  （模板只补缺失的）；②旧布局的插件内容**搬进**新布局的插件包（用户版占位；与新形态
+  模板同名的文件，模板版备份成 `<文件>.template`，两边都留）；③搬完删掉旧路径，仓根只剩
+  新布局的结构。workspace → single 方向若 packages/ 里还有别的插件包则**不清理**（不替你
+  决定删哪个）并给出告警。护栏侧：typert 面安装态护栏的报错文案区分「忘了 build」与
+  「src/index.ts 没 re-export Remote」（重排后旧代码覆盖模板版最容易撞后者）
 - **client 形态的宿主半边从来没被构建（client 插件装不进 profile）**：manifest 的 `main` /
   `exports['.']` 都指向 `./lib/index.js`，但 client 形态只构建 `lib/client.js` →
   `src/index.ts` 那个空 apply 宿主壳是**死代码**，产物根本不存在。后果：①

@@ -34,6 +34,7 @@ function capture(fn: () => void): string {
 const RESULT = {
   installed: true, gitInited: false, protocolSubmodule: 'added' as const,
   hostFace: 'skipped' as const, migration: { ran: false, migrated: [], errors: [] },
+  rearrange: { ran: false, from: 'single' as const, to: 'single' as const, moved: [], conflicts: [], removed: [], warnings: [] },
 }
 
 describe('displayPath', () => {

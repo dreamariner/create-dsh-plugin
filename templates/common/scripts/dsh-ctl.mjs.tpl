@@ -119,7 +119,7 @@ const usage = () => fail(`未知命令：${cmd ?? '（缺）'}。可用：status
 /** 启动形态：official（打包版 + --inspect）| dev（DSH_CHECKOUT 源码）。 */
 const form = () => process.env.DSH_DESKTOP_FORM || 'official'
 
-/** 从日志取最后一个访问地址（仅展示兜底——它可能是上一次实例的）。 */
+/** 从日志取最后一个访问地址（仅展示兜底：它可能是上一次实例的）。 */
 function lastUrlFromLog() {
   const log = logFile()
   if (!existsSync(log)) return undefined

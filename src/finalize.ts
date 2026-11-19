@@ -9,6 +9,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } fr
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { layoutOf } from './manifest.ts'
+import { cleanupRearrangedLayout, type Layout, type RearrangeResult } from './rearrange.ts'
 import { renderTemplateText, TEMPLATES } from './render.ts'
 import type { ScaffoldOptions } from './types.ts'
 
@@ -43,6 +44,8 @@ export interface FinalizeResult {
   hostFace: 'wired' | 'created' | 'skipped' | 'failed'
   /** 重排迁移报告（非重排恒 ran: false） */
   migration: ProfileMigrationReport
+  /** 旧布局清理报告（非重排 / 同布局恒 ran: false） */
+  rearrange: RearrangeResult
 }
 
 /** typert 协议声明源共享仓的默认 git URL。
@@ -216,11 +219,12 @@ export function migrateRootLinkInstalls(
 
 export function finalize(
   opts: ScaffoldOptions,
-  pre?: { wasNonEmpty?: boolean; oldPackageName?: string | null },
+  pre?: { wasNonEmpty?: boolean; oldPackageName?: string | null; oldLayout?: Layout },
 ): FinalizeResult {
   const result: FinalizeResult = {
     installed: false, gitInited: false, protocolSubmodule: 'skipped', hostFace: 'skipped',
     migration: { ran: false, migrated: [], errors: [] },
+    rearrange: { ran: false, from: 'single', to: 'single', moved: [], conflicts: [], removed: [], warnings: [] },
   }
 
   if (opts.git && opts.command === 'create') {
@@ -237,6 +241,23 @@ export function finalize(
   // 采样（渲染后目录必然非空）。
   if (opts.command === 'create' && pre?.wasNonEmpty) {
     result.migration = migrateRootLinkInstalls(opts, undefined, true)
+  }
+
+  // 旧布局清理：渲染完成后，仓根可能同时挂着旧布局与新布局的目录（单包 → workspace
+  // 重排最典型：src/ tests/ locale/ icon.svg 留在根上）。把旧布局的插件内容搬到新
+  // 布局的插件位置，再删掉旧路径。搬运用的是「用户版覆盖模板版」，模板渲染阶段
+  // 已经保住用户代码（不覆盖），所以这里搬的是用户自己的东西。
+  if (opts.command === 'create' && pre?.wasNonEmpty && pre?.oldLayout !== undefined) {
+    result.rearrange = cleanupRearrangedLayout(
+      opts.targetDir,
+      {
+        pluginId: opts.pluginId,
+        packageName: opts.packageName,
+        ...(pre.oldPackageName != null ? { oldPackageName: pre.oldPackageName } : {}),
+      },
+      pre.oldLayout,
+      layoutOf(opts.type),
+    )
   }
 
   // full 形态：typert 协议声明源以 submodule 挂载 packages/protocol（生成器结构性要求
@@ -336,6 +357,27 @@ export function printNextSteps(opts: ScaffoldOptions, result: FinalizeResult, wa
           + '（github 克隆、他机 profile、手工软链），重排后同样会静默失效，需按上方安装节重装。',
       )
     }
+  }
+  if (result.rearrange.ran) {
+    lines.push('', `♻ 布局清理：${result.rearrange.from} → ${result.rearrange.to}`)
+    if (result.rearrange.moved.length > 0) {
+      lines.push(`  · 旧布局的内容已搬进新布局的插件包：${result.rearrange.moved.join(', ')}`)
+    }
+    if (result.rearrange.removed.length > 0) {
+      lines.push(`  · 旧布局的残留路径已删除：${result.rearrange.removed.join(', ')}`)
+    }
+    if (result.rearrange.conflicts.length > 0) {
+      lines.push(`  ⚠ 与新形态模板同名、以你的版本为准的文件：${result.rearrange.conflicts.join(', ')}`)
+      lines.push('    新形态的模板版存在同名 .template 文件（如 src/index.ts.template），按 AGENTS.md 的红线把两边合起来。')
+    }
+    for (const w of result.rearrange.warnings) lines.push(`  ⚠ ${w}`)
+    if (result.rearrange.conflicts.length === 0) {
+      lines.push('  你的代码已原样搬进新布局的插件包，没有同名冲突。')
+    }
+  } else if (result.rearrange.from === result.rearrange.to && result.rearrange.warnings.length === 0 && wasNonEmpty) {
+    lines.push('', '♻ 布局未变：src/ tests/ locale/ icon.svg 保留了你现有的文件（模板只补缺失的），未被覆盖。')
+  } else {
+    for (const w of result.rearrange.warnings) lines.push('', `⚠ ${w}`)
   }
   if (result.hostFace === 'failed') {
     lines.push(

@@ -50,6 +50,9 @@ npx @dreamariner/create-dsh-plugin add @dreamariner/dsh-bar --type client
 
 # 跨形态重排（如 host 单包 → full workspace；本机 profile 里的旧 link 装法自动迁移）
 npx @dreamariner/create-dsh-plugin @dreamariner/dsh-foo --type full --dir ./dsh-foo
+#   重排不覆盖你已有的源码（模板只补缺失的），旧布局的内容搬进新布局的插件包、旧路径
+#   清掉；与新形态模板同名的文件，模板版备份成 <文件>.template，按 AGENTS.md 的红线
+#   把两边合起来（full 的 typert face 最容易漏）。
 
 # 市场展示三字段（不传则自动取：origin remote > 包名 scope 推 github 地址）
 npx @dreamariner/create-dsh-plugin @dreamariner/dsh-foo --type host \

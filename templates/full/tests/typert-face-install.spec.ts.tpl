@@ -31,6 +31,16 @@ describe('typert 面安装态护栏', () => {
     const target = manifest.exports['./typert']
     const file = typeof target === 'string' ? target : (target?.import ?? target?.default)
     expect(file, './typert 导出必须指向文件').toEqual(expect.any(String))
-    expect(existsSync(join(PKG, file!)), `${file} 不存在（先 pnpm build）`).toBe(true)
+    const exists = existsSync(join(PKG, file!))
+    if (!exists) {
+      // 产物没生成的最常见原因不是「忘了 build」，而是 src/index.ts 没有 re-export
+      // Remote：生成器从包的 export 图收集 Remote 符号，漏 export = 生成器看不见，
+      // 产物压根不生成（跨形态重排时旧代码覆盖模板版最容易撞这个）。
+      const src = readFileSync(join(PKG, 'src', 'index.ts'), 'utf8')
+      const hint = src.includes('__PASCAL_NAME__Remote')
+        ? '先 pnpm build（生成器产出 typert.host.js / typert.remote-client.js）'
+        : 'src/index.ts 里没有 re-export Remote：生成器从包的 export 图收集 Remote 符号，漏 export = 生成器看不见，产物压根不生成'
+      expect(exists, `${file} 不存在（${hint}）`).toBe(true)
+    }
   })
 })

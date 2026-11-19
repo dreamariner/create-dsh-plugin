@@ -20,6 +20,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { runHelp } from './help.ts'
 import { promptScaffold } from './prompts.ts'
 import { renderPluginPackage, renderProject } from './render.ts'
+import { detectOldLayout, type Layout } from './rearrange.ts'
 import { PROTOCOL_REPO_URL, finalize, printNextSteps } from './finalize.ts'
 
 async function main(): Promise<void> {
@@ -36,21 +37,25 @@ async function main(): Promise<void> {
 
   // 重排检测（create）：目标目录写入前已非空 = 对既有仓做 workspace 重排。
   // 必须在渲染前采样，渲染后目录必然非空；oldPackageName 是被覆盖前的根 manifest
-  // 名，迁移程序靠它判断 profile 里的旧依赖键是否需要连键改名。
+  // 名，迁移程序靠它判断 profile 里的旧依赖键是否需要连键改名；oldLayout 用来在
+  // 渲染后清理旧布局遗留的目录（重排后仓根不该同时挂着两套布局）。
   const preExisting = opts.command === 'create' && existsSync(opts.targetDir)
   const wasNonEmpty = preExisting && readdirSync(opts.targetDir).length > 0
   let oldPackageName: string | null = null
+  let oldLayout: Layout | undefined
   if (preExisting) {
     try {
       oldPackageName = JSON.parse(readFileSync(join(opts.targetDir, 'package.json'), 'utf8'))?.name ?? null
     } catch { /* 无法读取就当 null：迁移按 realpath 匹配照样能做 */ }
+    oldLayout = detectOldLayout(opts.targetDir)
   }
 
   const s = spinner()
   s.start(isAdd ? '生成插件包' : '生成项目文件')
   let files = 0
   try {
-    files = isAdd ? renderPluginPackage(opts) : renderProject(opts)
+    // 重排模式：用户可编辑的内容面（src/ tests/ locale/ icon.svg）不覆盖
+    files = isAdd ? renderPluginPackage(opts) : renderProject(opts, { preserveUserContent: wasNonEmpty })
   } catch (e) {
     s.stop('生成失败')
     cancel(e instanceof Error ? e.message : String(e))
@@ -58,7 +63,7 @@ async function main(): Promise<void> {
   }
   s.stop(`已写入 ${files} 个文件`)
 
-  const result = finalize(opts, { wasNonEmpty, oldPackageName })
+  const result = finalize(opts, { wasNonEmpty, oldPackageName, oldLayout })
 
   note(
     [

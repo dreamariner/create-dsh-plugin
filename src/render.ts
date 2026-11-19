@@ -23,6 +23,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { camelOf, pascalOf } from './args.ts'
 import { buildManifests, buildPackageManifest, layoutOf } from './manifest.ts'
+import { isUserContentPath } from './rearrange.ts'
 import type { PluginType, RenderFile, ScaffoldOptions } from './types.ts'
 
 /** 模板目录：相对本模块定位（编译产物在 lib/，模板在 ../templates/）。
@@ -254,8 +255,11 @@ export function renderTemplateText(src: string, type: PluginType, sub: Record<st
 }
 
 /** 渲染整个项目（新建仓）：workspace 写两份 manifest；single 根 package.json 就是
- *  插件 manifest。返回写入的文件数。 */
-export function renderProject(opts: ScaffoldOptions): number {
+ *  插件 manifest。返回写入的文件数。
+ *  guard.preserveUserContent：重排模式（目标目录非空）——用户可编辑的内容面
+ *  （src/ tests/ locale/ icon.svg）已存在时不覆盖，模板只补缺失的。否则重排会用
+ *  模板盖掉用户写的代码（跨形态重排前 src/index.ts 里是用户的逻辑）。 */
+export function renderProject(opts: ScaffoldOptions, guard?: { preserveUserContent?: boolean }): number {
   const { targetDir } = opts
   mkdirSync(targetDir, { recursive: true })
 
@@ -268,7 +272,7 @@ export function renderProject(opts: ScaffoldOptions): number {
     writePluginManifest(opts, manifests.plugin)
     count++
   }
-  count += renderFiles(opts, buildPlan(opts.type, opts.pluginId), targetDir, layoutOf(opts.type))
+  count += renderFiles(opts, buildPlan(opts.type, opts.pluginId), targetDir, layoutOf(opts.type), guard)
   return count
 }
 
@@ -285,8 +289,9 @@ function writePluginManifest(opts: ScaffoldOptions, manifest: Record<string, unk
   writeFileSync(join(dir, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`)
 }
 
-/** 渲染一组计划文件到 rootDir 下（.tpl 做替换，非 .tpl 原样拷贝）。返回写入数。 */
-function renderFiles(opts: ScaffoldOptions, plan: RenderFile[], rootDir: string, layout: 'single' | 'workspace'): number {
+/** 渲染一组计划文件到 rootDir 下（.tpl 做替换，非 .tpl 原样拷贝）。返回写入数。
+ *  guard.preserveUserContent：目标已存在且落在用户可编辑的内容面时跳过（不覆盖）。 */
+function renderFiles(opts: ScaffoldOptions, plan: RenderFile[], rootDir: string, layout: 'single' | 'workspace', guard?: { preserveUserContent?: boolean }): number {
   // 占位符与文件落位用同一份 layout：add 追加 host / client 时两者都是 workspace
   const sub = substitutionsOf(opts, layout)
   let count = 0
@@ -294,6 +299,8 @@ function renderFiles(opts: ScaffoldOptions, plan: RenderFile[], rootDir: string,
     const src = join(TEMPLATES, file.from)
     if (!existsSync(src)) throw new Error(`模板缺失：${file.from}（安装不完整？）`)
     const dest = join(rootDir, file.to)
+    // 重排模式：用户可编辑的内容面已存在 → 不覆盖（用户的代码优先，模板只补缺失的）
+    if (guard?.preserveUserContent === true && existsSync(dest) && isUserContentPath(file.to)) continue
     mkdirSync(dirname(dest), { recursive: true })
     if (file.from.endsWith('.tpl')) {
       writeFileSync(dest, renderTemplateText(src, opts.type, sub, layout))

@@ -33,6 +33,10 @@ npx @dreamariner/create-dsh-plugin add @dreamariner/dsh-panel --type full
   `pnpm install`；包名变了就连 dependencies 键与 `dsh.profile.bundles` 名单一起改。
   背景：重排会把根 manifest 换成根壳（无 `dsh.bundle`），旧装法静默失效且无任何
   报错日志，实例不重启不暴露。npm 发布版与 github 克隆是快照、不受重排影响，无需迁
+- **重排不动你的代码**：重排模式下模板只补缺失的文件，不覆盖你已有的 src/ tests/
+  locale/ icon.svg；旧布局的插件内容会搬进新布局的插件包（与新形态模板同名的文件，
+  模板版备份成 `<文件>.template`，两边都留），搬完删掉旧路径，仓根只剩新布局的结构。
+  workspace → single 方向若仓里还有别的插件包，则不清理（不替你决定删哪个）并给出告警
 - 项目名与包名是两回事：目录名与根壳 manifest 名跟项目名（缺省 = 首个插件 id，
   根壳名 `<id>-workspace`；显式 `--project-name` 且 ≠ 插件 id 时根壳名 = 裸项目名）；
   发布与安装只认包名。多插件项目建议起一个不被第一个插件绑架的项目名
