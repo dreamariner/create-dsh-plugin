@@ -10,7 +10,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { layoutOf } from './manifest.ts'
 import { cleanupRearrangedLayout, type Layout, type RearrangeResult } from './rearrange.ts'
-import { renderTemplateText, TEMPLATES } from './render.ts'
+import { renderTemplateText, substitutionsOf, TEMPLATES } from './render.ts'
 import type { ScaffoldOptions } from './types.ts'
 
 /** 对既有仓做 workspace 重排时，本机 DSH profile 里旧装法（link:<仓根>）的迁移记录。 */
@@ -253,6 +253,8 @@ export function finalize(
       {
         pluginId: opts.pluginId,
         packageName: opts.packageName,
+        newType: opts.type,
+        subs: substitutionsOf(opts, pre.oldLayout),
         ...(pre.oldPackageName != null ? { oldPackageName: pre.oldPackageName } : {}),
       },
       pre.oldLayout,
@@ -371,11 +373,14 @@ export function printNextSteps(opts: ScaffoldOptions, result: FinalizeResult, wa
       lines.push('    新形态的模板版存在同名 .template 文件（如 src/index.ts.template），按 AGENTS.md 的红线把两边合起来。')
     }
     for (const w of result.rearrange.warnings) lines.push(`  ⚠ ${w}`)
-    if (result.rearrange.conflicts.length === 0) {
+    if (result.rearrange.moved.length === 0 && result.rearrange.conflicts.length === 0) {
+      lines.push('  旧布局的内容全是未改动的模板文件：已直接清理，新形态的模板原位生效。')
+    } else if (result.rearrange.conflicts.length === 0) {
       lines.push('  你的代码已原样搬进新布局的插件包，没有同名冲突。')
     }
+    lines.push('  配置与文档面（package.json / README.md / AGENTS.md / tsdown 配置 / vitest / tsconfig）已按新形态重写：若你改过它们，请对照 git 历史。')
   } else if (result.rearrange.from === result.rearrange.to && result.rearrange.warnings.length === 0 && wasNonEmpty) {
-    lines.push('', '♻ 布局未变：src/ tests/ locale/ icon.svg 保留了你现有的文件（模板只补缺失的），未被覆盖。')
+    lines.push('', '♻ 布局未变：src/ tests/ locale/ icon.svg 保留了你现有的文件（模板只补缺失的），未被覆盖；其余配置与文档面已按模板重写。')
   } else {
     for (const w of result.rearrange.warnings) lines.push('', `⚠ ${w}`)
   }

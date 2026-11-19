@@ -256,7 +256,7 @@ export function renderTemplateText(src: string, type: PluginType, sub: Record<st
 
 /** 渲染整个项目（新建仓）：workspace 写两份 manifest；single 根 package.json 就是
  *  插件 manifest。返回写入的文件数。
- *  guard.preserveUserContent：重排模式（目标目录非空）——用户可编辑的内容面
+ *  guard.preserveUserContent：重排模式（目标目录非空）：用户可编辑的内容面
  *  （src/ tests/ locale/ icon.svg）已存在时不覆盖，模板只补缺失的。否则重排会用
  *  模板盖掉用户写的代码（跨形态重排前 src/index.ts 里是用户的逻辑）。 */
 export function renderProject(opts: ScaffoldOptions, guard?: { preserveUserContent?: boolean }): number {

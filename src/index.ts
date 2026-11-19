@@ -40,7 +40,10 @@ async function main(): Promise<void> {
   // 名，迁移程序靠它判断 profile 里的旧依赖键是否需要连键改名；oldLayout 用来在
   // 渲染后清理旧布局遗留的目录（重排后仓根不该同时挂着两套布局）。
   const preExisting = opts.command === 'create' && existsSync(opts.targetDir)
-  const wasNonEmpty = preExisting && readdirSync(opts.targetDir).length > 0
+  // 噪音不算「非空」：Finder 的 .DS_Store、空 git 仓的 .git、Windows 的 Thumbs.db
+  const NOISE_ENTRIES = new Set(['.git', '.DS_Store', 'Thumbs.db'])
+  const wasNonEmpty = preExisting
+    && readdirSync(opts.targetDir).filter((n) => !NOISE_ENTRIES.has(n)).length > 0
   let oldPackageName: string | null = null
   let oldLayout: Layout | undefined
   if (preExisting) {
@@ -48,6 +51,15 @@ async function main(): Promise<void> {
       oldPackageName = JSON.parse(readFileSync(join(opts.targetDir, 'package.json'), 'utf8'))?.name ?? null
     } catch { /* 无法读取就当 null：迁移按 realpath 匹配照样能做 */ }
     oldLayout = detectOldLayout(opts.targetDir)
+  }
+  // 重排只面向本脚手架生成的仓：非脚手架的非空目录里 package.json / README /
+  // tsdown 配置等配置面会被重写（内容面虽保住，配置面是数据损失），宁可拒绝
+  if (preExisting && wasNonEmpty && oldLayout === undefined) {
+    cancel(
+      '目标目录非空，且不是本脚手架生成的插件仓（根 manifest 无 dsh.bundle，也没有 pnpm-workspace.yaml + packages/）。'
+        + '跨形态重排只面向本脚手架生成的仓；要在这里新建插件项目，请先清空目录或换一个目录。',
+    )
+    process.exit(1)
   }
 
   const s = spinner()

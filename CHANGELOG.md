@@ -61,12 +61,31 @@
   跨形态重排。此前①渲染阶段直接拿模板盖掉用户已有的 src/ tests/ locale/ icon.svg
   （用户写的逻辑被冲掉）；②重排后旧布局的路径（src/ tests/ locale/ icon.svg
   cordis.patch.yml tsdown.config.ts lib/）一直躺在仓根，两套布局叠在一起，仓根那个旧
-  tsdown.config.ts 还是个隐患。改为三条纪律：①重排模式下用户可编辑的内容面**不覆盖**
+  tsdown.config.ts 还是个隐患。改为四条纪律：①重排模式下用户可编辑的内容面**不覆盖**
   （模板只补缺失的）；②旧布局的插件内容**搬进**新布局的插件包（用户版占位；与新形态
-  模板同名的文件，模板版备份成 `<文件>.template`，两边都留）；③搬完删掉旧路径，仓根只剩
-  新布局的结构。workspace → single 方向若 packages/ 里还有别的插件包则**不清理**（不替你
-  决定删哪个）并给出告警。护栏侧：typert 面安装态护栏的报错文案区分「忘了 build」与
-  「src/index.ts 没 re-export Remote」（重排后旧代码覆盖模板版最容易撞后者）
+  模板同名的代码文件，模板版备份成 `<文件>.template`，两边都留）；③与旧形态模板渲染
+  **逐字节一致**的文件 = 未改动的模板文件，不搬运，直接清理让新形态模板原位生效
+  （否则连没动过演示代码的仓 full → host 都会开箱构建红：搬过去的 remote.ts 值导入
+  协议包，host / client 形态没有这个依赖）；④搬完删掉旧路径与旧布局的孤儿配置，仓根
+  只剩新布局的结构。配套处理：workspace → single 方向若 packages/ 里还有别的插件包或
+  杂散文件则**不清理**（不替你决定删哪个）并给出告警；搬运时按文件推断旧形态，与旧
+  模板渲染比对；跨形态搬进来的死半边代码（full → host 的 src/remote.ts、src/client/）
+  与断链的 Remote 接线给出明说构建会红的告警；typert 面安装态护栏的报错文案区分
+  「忘了 build」与「src/index.ts 没 re-export Remote」
+- **重排清理自查（发版前第二轮审计，8 处）**：①workspace → single 方向把插件包里用户
+  改过的 cordis.patch.yml 直接删掉（单包 → workspace 方向有搬运、这个方向漏了）：同样
+  搬运（内容一致不算冲突，不同才备份）；②tests/setup.ts 是用户可编辑的测试夹具（模板
+  明说让用户改），却被当成护栏 spec 不搬运，重排时用户改的隔离逻辑被静默删掉：改按
+  用户内容搬运；③非脚手架生成的非空目录会被 create --dir 直接重写 package.json 等
+  配置面：改为拒绝（.DS_Store / .git / Thumbs.db 这类噪音不算非空）；④workspace →
+  single 留下 full 布局的孤儿文件（tsconfig.host.json、scripts/sync-pack-docs.mjs、
+  scripts/ensure-protocol.mjs、client 形态下的 dev-hmr.mjs、只登记 protocol 的
+  .gitmodules）：按新形态清理，.gitmodules 含其他 submodule 时保留并告警，protocol 的
+  git 登记给出 `git rm -r --cached` 指引（git 索引不代改）；⑤死半边与断链告警（见上
+  条）；⑥冲突备份污染 npm 包（files 白名单的 locale 是整目录收录，zh.json.template 会
+  进 tarball）：备份只对代码面（src/ tests/），locale 与 icon 用户版直接占位；⑦上次
+  重排留下的 .template 备份会被本次覆盖：已存在则跳过；⑧oldPackageName 读不出来时仍
+  乐观搬运 bundle patch：改为保守不搬并告警
 - **client 形态的宿主半边从来没被构建（client 插件装不进 profile）**：manifest 的 `main` /
   `exports['.']` 都指向 `./lib/index.js`，但 client 形态只构建 `lib/client.js` →
   `src/index.ts` 那个空 apply 宿主壳是**死代码**，产物根本不存在。后果：①
