@@ -9,16 +9,16 @@
 
 import type { PluginType } from './types.ts'
 
-/** DSH 版本锚：与官方打包版 0.2.2-rc.2 对齐（升级时改这里 + tsconfig/模板注释里的版本）。 */
-export const DSH_VERSION = '0.2.2-rc.2'
+/** DSH 版本锚：与官方打包版 0.2.2-rc.5 对齐（升级时改这里 + tsconfig/模板注释里的版本）。 */
+export const DSH_VERSION = '0.2.2-rc.5'
 
 /** schemastery（配置校验）的宿主共享版本：peer 范围 + dev 精确钉（不变式 I1）。
- *  数值 = DSH 0.2.2-rc.2 的 vendor 实况（deepseek-harness/vendor/schemastery 3.19.0），
+ *  数值 = DSH 0.2.2-rc.5 的 vendor 实况（deepseek-harness/vendor/schemastery 3.19.0），
  *  与同代外部插件仓的实钉一致。 */
 const SCHEMASTERY = { peer: '>=3.19.0 <4.0.0-0', dev: '3.19.0' } as const
 
 /** @deepseek-ai/cordis（Context 类型来源）：dev 精确钉（类型源）。
- *  数值 = DSH 0.2.2-rc.2 的 vendor 实况（deepseek-harness/vendor/cordis 4.1.0）。 */
+ *  数值 = DSH 0.2.2-rc.5 的 vendor 实况（deepseek-harness/vendor/cordis 4.1.0）。 */
 const CORDIS_DEV = '4.1.0'
 
 export interface ManifestInput {
