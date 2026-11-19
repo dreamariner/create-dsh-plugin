@@ -103,6 +103,8 @@
   路径解析），engines 维持 `>=20`
 - **脚手架自身的构建用了已废弃的 tsdown API**：`noExternal` 自 tsdown 0.22 起打 WARN、
   未来大版本会移除。改为 `deps.alwaysBundle`（语义等价：全量内联，产物零裸 import）
+- **模板注释的破折号清理**：`dsh-ctl.mjs.tpl` 一处历史残留的「——」（zero 知识库行文
+  规范禁用），改用冒号衔接
 
 ### 变更
 
